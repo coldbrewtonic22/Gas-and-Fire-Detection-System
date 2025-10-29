@@ -880,12 +880,12 @@ void handleConfigSubmit()
 
         for (int i = 0; i < WEBPAGEpassword.length(); i++)
         {
-            EEPROM.write(32 + i, WEBPAGEpassword[i]);
+            EEPROM.write(i + 32, WEBPAGEpassword[i]);
         }
 
         for (int i = 0; i < WEBPAGEblynkToken.length(); i++)
         {
-            EEPROM.write(96 + i, WEBPAGEblynkToken[i]);
+            EEPROM.write(i + 96, WEBPAGEblynkToken[i]);
         }
         
         EEPROM.commit();
