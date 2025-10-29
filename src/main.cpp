@@ -614,6 +614,7 @@ void configPage()
         .form-group:nth-child(4) { animation-delay: 0.6s; }
         @keyframes formSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         label { display: block; margin-bottom: 10px; font-weight: 700; color: #333; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .optional-tag { font-size: 11px; font-weight: 500; color: #666; text-transform: none; margin-left: 5px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; }
         .input-wrapper { position: relative; }
         input { width: 100%; padding: 16px 20px; border: 3px solid #e0e0e0; border-radius: 16px; font-size: 16px; font-weight: 500; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: white; font-family: inherit; color: #333; }
         input[type="password"], input[type="text"]#password { padding-right: 55px; }
@@ -683,9 +684,9 @@ void configPage()
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="password">🔒 Password</label>
+                    <label for="password">🔒 Password <span class="optional-tag">Optional</span></label>
                     <div class="input-wrapper">
-                        <input type="password" id="password" name="password" placeholder="Enter WiFi password" maxlength="64" required autocomplete="off">
+                        <input type="password" id="password" name="password" placeholder="Leave empty for open network" maxlength="64" autocomplete="off">
                         <span class="toggle-password" onclick="togglePassword()">👁️</span>
                     </div>
                 </div>
@@ -735,16 +736,28 @@ void configPage()
         function handleSubmit(event) {
             event.preventDefault();
             const ssid = document.getElementById("ssid").value.trim();
-            const password = document.getElementById("password").value.trim();
+            const password = document.getElementById("password").value; // Don't trim - allow spaces in password
             const token = document.getElementById("token").value.trim();
-            if (!ssid || !password || !token) {
-                alert("Please fill in all fields!");
+            
+            // SSID is required
+            if (!ssid) {
+                alert("Please enter WiFi SSID!");
+                return false;
+            }
+            
+            // Password is OPTIONAL - can be empty for open networks
+            // No validation needed for password
+            
+            // Token must be exactly 32 characters
+            if (!token) {
+                alert("Please enter Blynk Token!");
                 return false;
             }
             if (token.length !== 32) {
-                alert("Blynk token must be exactly 32 characters!\\nCurrent length: " + token.length);
+                alert("Blynk token must be exactly 32 characters!\nCurrent length: " + token.length);
                 return false;
             }
+            
             const btn = document.querySelector(".submit-btn");
             btn.disabled = true;
             btn.innerHTML = "<span>⏳ Saving Configuration...</span>";
@@ -752,7 +765,7 @@ void configPage()
             setTimeout(() => {
                 const params = new URLSearchParams({
                     ssid: ssid,
-                    pass: password,
+                    pass: password,  // Send even if empty
                     token: token
                 });
                 window.location.href = "/save?" + params.toString();
@@ -786,45 +799,76 @@ void configPage()
 
 void handleConfigSubmit()
 {
-    Serial.println("\nConfiguration Submitted!");
+    Serial.println("\n[WebServer] Configuration Submitted!");
 
     vTaskSuspend(TaskMainDisplay_Handle);
 
-    if (server.hasArg("ssid") && server.hasArg("pass") && server.hasArg("token"))
+    if (server.hasArg("ssid") && server.hasArg("token"))
     {
         WEBPAGEssid = server.arg("ssid");
-        WEBPAGEpassword = server.arg("pass");
         WEBPAGEblynkToken = server.arg("token");
+        
+        if (server.hasArg("pass")) 
+        {
+            WEBPAGEpassword = server.arg("pass");
+        } 
+        else 
+        {
+            WEBPAGEpassword = "";
+        }
 
         if (WEBPAGEssid.length() < 1 || WEBPAGEssid.length() > 32) 
         {
             sendErrorPage("Invalid SSID length (1-32 characters)");
+            vTaskResume(TaskMainDisplay_Handle);
             return;
         }
 
-        if (WEBPAGEpassword.length() < 1 || WEBPAGEpassword.length() > 64) 
+        if (WEBPAGEpassword.length() > 64) 
         {
-            sendErrorPage("Invalid Password length (1-64 characters)");
+            sendErrorPage("Password too long (maximum 64 characters)");
+            vTaskResume(TaskMainDisplay_Handle);
             return;
         }
 
         if (WEBPAGEblynkToken.length() != 32) 
         {
             sendErrorPage("Invalid Token length (must be 32 characters)");
+            vTaskResume(TaskMainDisplay_Handle);
             return;
         }
 
         Serial.println("Received Credentials:");
-        Serial.print("\tSSID: ");       Serial.println(WEBPAGEssid);
-        Serial.print("\tPassword: ");   Serial.println(WEBPAGEpassword);
-        Serial.print("\tToken: ");      Serial.println(WEBPAGEblynkToken);
+        Serial.print("\tSSID: ");       
+        Serial.println(WEBPAGEssid);
+        Serial.print("\tPassword: "); 
+
+        if (WEBPAGEpassword.length() == 0) 
+        {
+            Serial.println("[EMPTY - Open Network]");
+        } 
+        else 
+        {
+            Serial.println(WEBPAGEpassword);
+        }
+
+        Serial.print("\tToken: ");      
+        Serial.println(WEBPAGEblynkToken);
 
         LCDprint(0, 0, "Config WiFi STA", true);
         LCDprint(0, 1, "Please Check", false);
         delay(2000);
         
         LCDprint(0, 0, WEBPAGEssid, true);
-        LCDprint(0, 1, WEBPAGEpassword, false);
+
+        if (WEBPAGEpassword.length() == 0) 
+        {
+            LCDprint(0, 1, "[Open Network]", false);
+        } 
+        else 
+        {
+            LCDprint(0, 1, WEBPAGEpassword, false);
+        }
         delay(5000);
 
         clearConfigEEPROM();    delay(10);
@@ -850,14 +894,15 @@ void handleConfigSubmit()
         sendSuccessPage();
 
         LCDprint(0, 0, "    RESTART   ", true);      delay(2000);
-        LCDprint(0, 1, "     DONE     ", false);    delay(2000);
+        LCDprint(0, 1, "     DONE     ", false);     delay(2000);
 
-        Serial.println("Restarting now...");
+        Serial.println("Restarting ESP32...");
         ESP.restart();
     }
     else
     {
-        sendErrorPage("Missing required fields");
+        sendErrorPage("Missing required fields (SSID and Token)");
+        vTaskResume(TaskMainDisplay_Handle);
     }
 }
 
