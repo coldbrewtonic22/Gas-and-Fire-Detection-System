@@ -30,6 +30,7 @@ bool doorState = OFF;
 bool blynkConnect = false;
 bool buzzerActive = false;
 bool startupComplete = false;
+bool userSilencedBuzzer = false;
 bool sendNotificationsOnce = false;
 
 unsigned long startupTime = 0;
@@ -241,32 +242,16 @@ void TaskButton(void* pvParameters)
                 if (buttonState == LOW)
                 {
                     Serial.println("[TaskButton] Button pressed - Stoping alerts!");
-
+                    
                     buzzerActive = false;
+                    userSilencedBuzzer = true;
+                    
                     digitalWrite(BUZZER, BUZZER_OFF);
 
-                    gasDetected = false;
-                    fireDetected = false;
-                    sendNotificationsOnce = false;
-
-                    digitalWrite(RELAY_FAN, OFF);
-                    digitalWrite(RELAY_PUMP, OFF);
-                    digitalWrite(LED, LOW);
-
-                    closeDoor();
-                    doorState = OFF;
-
-                    if (blynkConnect)
-                    {
-                        Blynk.virtualWrite(SERVO_PIN, 0);
-                        Blynk.virtualWrite(RELAY_PIN, 0);
-                    }
-
-                    LCDprint(0, 0, "Alert Stopped", true);
+                    LCDprint(0, 0, "Buzzer Silenced", true);    
                     LCDprint(0, 1, "by User", false);
 
                     vTaskDelay(2000 / portTICK_PERIOD_MS);
-                    LCD.clear();
                 }
             }
         }
@@ -331,13 +316,35 @@ void checkSensors()
 
 void handleAlerts()
 {
-    if (gasDetected && fireDetected) 
+    static bool lastAlertState = false;
+    bool currentAlertState = (gasDetected || fireDetected);
+
+    if (currentAlertState && !lastAlertState)
     {
+        if (userSilencedBuzzer)
+        {
+            Serial.println("Reactivating Buzzer");
+        }
+
         buzzerActive = true;
+        userSilencedBuzzer = false;
+    }
+    lastAlertState = currentAlertState;
+    
+    if (gasDetected && fireDetected)
+    {
+        if (!userSilencedBuzzer) 
+        {
+            buzzerActive = true;
+        }
+        else
+        {
+            buzzerActive = false;
+        }
 
         digitalWrite(LED, HIGH);
         
-        openDoor();     doorState = ON;
+        openDoor(); doorState = ON;
         
         digitalWrite(RELAY_FAN, ON);
         digitalWrite(RELAY_PUMP, ON);
@@ -345,21 +352,27 @@ void handleAlerts()
         if (!sendNotificationsOnce && blynkConnect)
         {
             Blynk.logEvent("gas_fire_detection", "WARNING: FIRE & GAS DETECTED!");
-
-            Serial.println("WARNING: GAS & FIRE DETECTED!");
-
             Blynk.virtualWrite(SERVO_PIN, 1);
             Blynk.virtualWrite(RELAY_PIN, 3);
 
-            LCDprint(4, 0, "WARNING!", true);
-            LCDprint(2, 1, "GAS & FIRE", false);
+            Serial.println("WARNING: GAS & FIRE DETECTED!");
 
             sendNotificationsOnce = true;
         }
+
+        LCDprint(4, 0, "WARNING!", true);
+        LCDprint(2, 1, "GAS & FIRE", false);
     }
     else if (gasDetected && !fireDetected) 
     {
-        buzzerActive = true;
+        if (!userSilencedBuzzer) 
+        {
+            buzzerActive = true;
+        }
+        else
+        {
+            buzzerActive = false;
+        }
 
         digitalWrite(LED, HIGH);
         
@@ -371,21 +384,27 @@ void handleAlerts()
         if (!sendNotificationsOnce && blynkConnect) 
         {
             Blynk.logEvent("gas_fire_detection", "GAS CONCENTRATION HIGH!");
-
-            Serial.println("WARNING: GAS CONCENTRATION HIGH!");
-
             Blynk.virtualWrite(SERVO_PIN, 1);
             Blynk.virtualWrite(RELAY_PIN, 1);
 
-            LCDprint(4, 0, "WARNING", true);
-            LCDprint(2, 1, "GAS DETECTED", true);
+            Serial.println("WARNING: GAS CONCENTRATION HIGH!");
 
             sendNotificationsOnce = true;
         }
+
+        LCDprint(4, 0, "WARNING", true);
+        LCDprint(2, 1, "GAS DETECTED", true);
     }
     else if (!gasDetected && fireDetected)
     {
-        buzzerActive = true;
+        if (!userSilencedBuzzer) 
+        {
+            buzzerActive = true;
+        }
+        else
+        {
+            buzzerActive = false;
+        }
 
         digitalWrite(LED, HIGH);
         
@@ -397,21 +416,21 @@ void handleAlerts()
         if (!sendNotificationsOnce && blynkConnect)
         {
             Blynk.logEvent("gas_fire_detection", "FIRE DETECTED!");
-
-            Serial.println("WARNING: FIRE DETECTED!");
-
             Blynk.virtualWrite(SERVO_PIN, 1);
             Blynk.virtualWrite(RELAY_PIN, 2);
 
-            LCDprint(4, 0, "WARNING", true);
-            LCDprint(2, 1, "FIRE DETECTED", false);
+            Serial.println("WARNING: FIRE DETECTED!");
 
             sendNotificationsOnce = true;
         }
+
+        LCDprint(4, 0, "WARNING", true);
+        LCDprint(2, 1, "FIRE DETECTED", false);
     }
     else
     {
         buzzerActive = false;
+        userSilencedBuzzer = false;
 
         digitalWrite(LED, LOW);
         
