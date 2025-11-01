@@ -20,6 +20,7 @@ WebServer server(80);                       // HTTP DEFAULT PORT
 LiquidCrystal_I2C LCD(0x27, 16, 2);
 SimpleKalmanFilter filter(2, 2, 0.1);
 
+int HYSTERESIS = 100;
 int gasThreshold = 22;          // GAS THRESHOLD TO STORE IN FLASH MEMORY
 int buttonState = HIGH;
 int gasDetected = false;
@@ -304,8 +305,8 @@ void checkSensors()
     int gasValue = readMQ2();
     int fireValue = readMHSensor();
 
-    if (gasValue > gasThreshold)                gasDetected = true;
-    else if (gasValue < gasThreshold - 100)     gasDetected = false;
+    if (gasValue > gasThreshold)                       gasDetected = true;
+    else if (gasValue < gasThreshold - HYSTERESIS)     gasDetected = false;
     fireDetected = fireValue == MH_SENSOR_ON;
 
     Serial.print("Gas: ");
