@@ -28,8 +28,6 @@
 - [Blynk Setup](#-blynk-setup)
 - [Web Interface](#-web-interface)
 - [How It Works](#-how-it-works)
-- [Troubleshooting](#-troubleshooting)
-- [FAQ](#-faq)
 - [License](#-license)
 
 ---
