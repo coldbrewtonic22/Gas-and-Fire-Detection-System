@@ -16,20 +16,20 @@ char BLYNK_AUTH_TOKEN[32] =     "";
 
 Servo door;
 BlynkTimer timer;
-WebServer server(80);                       // HTTP DEFAULT PORT
+WebServer server(80);
 LiquidCrystal_I2C LCD(0x27, 16, 2);
 SimpleKalmanFilter filter(2, 2, 0.1);
 
 int HYSTERESIS = 100;
-int gasThreshold = 22;          // GAS THRESHOLD TO STORE IN FLASH MEMORY
-int buttonState = HIGH;
-int gasDetected = false;
-int fireDetected = false;
-int lastButtonState = HIGH;
+int gasThreshold = 22;
 
 bool doorState = OFF;
+bool buttonState = HIGH;
+bool gasDetected = false;
+bool fireDetected = false;
 bool blynkConnect = false;
 bool buzzerActive = false;
+bool lastButtonState = HIGH;
 bool startupComplete = false;
 bool userSilencedBuzzer = false;
 bool sendNotificationsOnce = false;
@@ -98,6 +98,7 @@ void setup()
     digitalWrite(RELAY_FAN, OFF);
     digitalWrite(RELAY_PUMP, OFF);
     digitalWrite(BUZZER, BUZZER_OFF);
+    digitalWrite(MH_SENSOR, MH_SENSOR_ON);
 
     door.setPeriodHertz(50);          
     door.attach(SERVO, 500, 2400);
@@ -309,10 +310,8 @@ void checkSensors()
     else if (gasValue < gasThreshold - HYSTERESIS)     gasDetected = false;
     fireDetected = fireValue == MH_SENSOR_ON;
 
-    Serial.print("Gas: ");
-    Serial.print(gasValue);
-    Serial.print(" | Fire: ");
-    Serial.println(fireValue);
+    Serial.print("Gas: ");      Serial.print(gasValue);
+    Serial.print(" | Fire: ");  Serial.println(fireValue);
 }
 
 void handleAlerts()
