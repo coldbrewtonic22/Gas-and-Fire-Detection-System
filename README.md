@@ -86,28 +86,33 @@ Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere ga
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         ESP32                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │   Core 0     │  │   Core 1     │  │   Sensors    │       │
-│  ├──────────────┤  ├──────────────┤  ├──────────────┤       │
-│  │ • WebServer  │  │ • Main Disp  │  │ • MQ-2 (Gas) │       │
-│  │ • Blynk      │  │ • Buzzer     │  │ • MH (Fire)  │       │
-│  │              │  │ • Button     │  │              │       │
-│  └──────────────┘  └──────────────┘  └──────────────┘       │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              Output Devices                          │   │
-│  ├──────────────────────────────────────────────────────┤   │
-│  │ • LCD 16x2 (I2C)    • Servo Door (1x)                │   │
-│  │ • Relay Fan         • Relay Pump                     │   │
-│  │ • Buzzer            • LED Indicator                  │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ├── WiFi ──► Router ──► Internet
-                            │                          │
-                            └──────────────────────────┴──► Blynk Cloud
+               [ INPUTS ]                               [ ESP32 (CENTRAL PROCESSING UNIT) ]                         [ OUTPUTS ]
+     ┌─────────────────────────────┐               ┌────────────────────────────────────────────┐               ┌───────────────────────────┐
+     │ Cảm biến:                   │               │ [Core 0: Communication Tasks]              │               │ Cơ cấu chấp hành:         │
+     │  • Cảm biến Gas (MQ-2)      ├──────────────►│  • TaskWebServer (Phát AP, nhận cấu hình)  │──────────────►│  • Rơ-le (Quạt thông gió) │
+     │  • Cảm biến Lửa (IR)        ├──────────────►│  • TaskBlynk (Gửi/nhận data từ Cloud)      │──────────────►│  • Rơ-le (Máy bơm nước)   │
+     │                             │               │                                            │──────────────►│  • Servo (Cửa)            │
+     │ Giao diện người dùng:       │               │ [Core 1: Real-Time Logic Tasks]            │               │                           │
+     │  • Nút nhấn (Smart Silence) ├──────────────►│  • TaskMainDisplay (Đọc/Lọc/Quyết định)    │               │ Báo động:                 │
+     │                             │               │  • TaskButton (Xử lý nút nhấn, chống dội)  │──────────────►│  • Còi (Buzzer)           │
+     └─────────────────────────────┘               │  • TaskBuzzer (Tạo tiếng bíp, non-blocking)│──────────────►│  • Đèn LED (Trạng thái)   │
+                                                   │                                            │               │                           │
+                                                   │ Giao thức I2C:                             │◄─────────────►│ Hiển thị:                 │
+                                                   │  • (SDA / SCL)                             │               │  • LCD 16x2               │
+                                                   └─────────────────────┬──────────────────────┘               └───────────────────────────┘
+                                                                (Module WiFi Tích hợp)
+                                                                         │
+                                                                         │
+                                                                         ▼         
+                                                       ┌─────────────────┴───────────────────────────┐
+                                                       │           NETWORK & CLOUD                   │
+                                                       ├─────────────────────────────────────────────┤
+                                                       │ [WiFi Router] -> [Internet] -> [Blynk Cloud]│
+                                                       └─────────────────────────────────────────────┘
+                                                                         │
+                                                                         ▼
+                                                                  [ User's Phone ]
+                                                             (App Blynk / Web Browser)
                                                             
 ```
 
@@ -115,35 +120,35 @@ Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere ga
 
 ## 🔧 Hardware Requirements
 
+## 🔧 Hardware Requirements
+
+This project uses standard, readily available components. The components are divided into main components (the core system) and supporting components (power, wiring, actuators, etc.).
+
 ### Main Components
 
-| Component | Specification | Quantity | Purpose |
-|-----------|---------------|----------|---------|
-| **ESP32 Dev Board** | ESP32-WROOM-32 | 1 | Main microcontroller |
-| **MQ-2 Gas Sensor** | Analog output | 1 | Detects LPG, propane, methane |
-| **Flame Sensor** | IR-based (MH-Sensor) | 1 | Detects fire/flame |
-| **LCD Display** | 16x2 I2C (0x27) | 1 | Status display |
-| **Servo Motor** | SG90 or similar | 1 | Emergency door control |
-| **Relay Module** | 5V 2-Channel | 1 | Controls fan & pump |
-| **Buzzer** | Active 5V | 1 | Audio alarm |
-| **Push Button** | Momentary switch | 1 | Silence buzzer |
-| **LED** | 5mm any color | 1 | Visual indicator |
+| Component | Details | Link |
+| :--- | :--- | :--- |
+| **ESP32 DevKit** | The main microcontroller, based on the **ESP32-WROOM-32** module. It features dual-core processing, WiFi, and Bluetooth. (30-pin version) | [Link](https://banlinhkien.com/kit-wifi-esp32-espwroom32s-p6649289.html) |
+| **MQ-2 Gas Sensor** | Detects smoke, LPG, Propane, and other combustible gases. Operates at **5V** and provides both analog (A0) and digital (D0) outputs. | [Link](https://banlinhkien.com/module-cam-bien-khi-gas-mq2-p6646888.html) |
+| **IR Flame Sensor** | Detects flames by sensing infrared (IR) light. Operates at **5V** and provides a digital output (D0) when a flame is detected. | [Link](https://banlinhkien.com/module-cam-bien-phat-hien-lua-flame-sensor-p6646877.html) |
+| **SG90 Servo Motor** | A 9g micro servo used to simulate opening an emergency door/vent. Operates at **4.8V-5V** with a ~180° rotation angle. | [Link](https://banlinhkien.com/dong-co-servo-sg90-goc-quay-180-p6648774.html) |
+| **2-Channel Relay Module** | A **5V, 2-Channel** module to control high-current devices. Rated for 10A/250VAC. (This project uses it in **Active HIGH** mode via jumper). | [Link](httpsG://banlinhkien.com/module-relay-mini-2-kenh-5v10a-blk-p17935548.html) |
+| **LCD 1602 + I2C** | A 16x2 character display (green backlight) paired with an **I2C driver module** (PC8574). This simplifies wiring, requiring only 2 pins (SDA/SCL). | [Link](httpsD://linhkienx.com/man-hinh-lcd-1602-nen-xanh-la-chu-den-5vdc-kem-i2c-driver) |
+| **Active Buzzer** | A **5V** active buzzer module that produces a continuous tone when a HIGH signal is applied. Used for the audible alarm. | [Link](https://linhkienx.com/1209-buzzer-coi-chip-12x9mm-93db-xuyen-lo) |
+| **Tactile Push Button** | A 4-pin (6x6x4.3mm) momentary push button used for the "Smart Silence" feature. | [Link](httpsSA://linhkienx.com/nut-nhan-6x6mm-cao-4-3mm-4-chan-xuyen-lo) |
+| **3mm Red LED** | A standard 3mm red LED (clear lens) used as a visual alarm indicator. | [Link](https://linhkienx.com/led-do-3mm-sieu-sang-dau-tron-trong-suot-chan-dai) |
 
 ### Supporting Components
 
-- Resistors: 10kΩ (for button pull-up - optional, using internal pull-up)
-- Jumper wires (Male-Female, Male-Male)
-- Breadboard or PCB
-- Power supply: 5V 2A minimum
-- Water pump (12V, for fire suppression)
-- Ventilation fan (12V, for gas dispersal)
-
-### Optional Enhancements
-
-- External antenna for better WiFi range
-- Battery backup (18650 Li-ion + TP4056 module)
-- Weatherproof enclosure for outdoor use
-- Additional sensors (CO, smoke, temperature)
+| Component | Details | Link |
+| :--- | :--- | :--- |
+| **5V 2A Power Adapter** | Main power supply for the ESP32 expansion board. Provides **5V at 2A** via a DC 5.5x2.1mm barrel jack. | [Link](https://banlinhkien.com/nguon-adapter-5v2a-dc5.5x2.1mm-p6651354.html) |
+| **220Ω Resistor** | A 1/4W, 5% tolerance resistor used as a current-limiter for the red LED. | [Link](httpsD://linhkienx.com/dien-tro-220-ohm-1-4w-5-4-vong-mau) |
+| **MB-102 Breadboard** | An 830-point solderless breadboard used for prototyping the signal circuit. | [Link](httpsIAS://linhkienx.com/mb-102-breadboard-cam-linh-kien-830-lo) |
+| **5V Mini Fan** | A 40x40x10mm (4010) **5V DC** fan used for gas ventilation, controlled by the relay. | [Link](httpsSA://linhkienx.com/quat-4010-40x40x10mm-5vdc) |
+| **5V Mini Water Pump** | A **5V DC** submersible mini pump (1.2-1.6L/min) used to simulate a fire suppression system, controlled by the relay. | [Link](https://linhkienx.com/may-bom-chim-mini-5v-1-2-1-6l-phut) |
+| **Jumper Wires (M-F)** | Male-to-Female jumper wires (15cm) for connecting components to the ESP32 board. | [Link](https://linhkienx.com/day-be-duc-cai-dai-15cm) |
+| **Jumper Wires (M-M)** | Male-to-Male jumper wires (15cm) for connections on the breadboard. | [Link](https://linhkienx.com/day-be-duc-duc-dai-15cm) |
 
 ---
 
@@ -206,53 +211,10 @@ lib_deps =
 ### Wiring Diagram
 
 ```
-ESP32          MQ-2 Sensor
------          -----------
- 3V3    ────►  VCC
- GND    ────►  GND
- GPIO35 ────►  AO (Analog Out)
+Below is the complete wiring diagram for the project, showing the connections between the ESP32, sensors, and actuators.
 
-ESP32          Flame Sensor
------          ------------
- 3V3    ────►  VCC
- GND    ────►  GND
- GPIO34 ────►  DO (Digital Out)
 
-ESP32          LCD I2C
------          --------
- 3V3    ────►  VCC
- GND    ────►  GND
- GPIO21 ────►  SDA
- GPIO22 ────►  SCL
-
-ESP32          Servo Motor
------          -----------
- 5V     ────►  VCC (Red)
- GND    ────►  GND (Brown)
- GPIO33 ────►  Signal (Orange)
-
-ESP32          Relay Module
------          ------------
- 5V     ────►  VCC
- GND    ────►  GND
- GPIO18 ────►  IN1 (Fan)
- GPIO5  ────►  IN2 (Pump)
-
-ESP32          Buzzer
------          ------
- GPIO23 ────►  Positive (+)
- GND    ────►  Negative (-)
-
-ESP32          Button
------          ------
- GPIO4  ────►  One side
- GND    ────►  Other side
- (Uses internal pull-up resistor)
-
-ESP32          LED
------          ---
- GPIO19 ────►  Anode (+) ──┬── 220Ω
- GND    ───────────────────┘
+![Project Wiring Diagram](Gas and Fire Detection System.jpg)
 ```
 
 ---
