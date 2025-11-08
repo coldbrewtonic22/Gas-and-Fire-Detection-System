@@ -214,7 +214,7 @@ lib_deps =
 Below is the complete wiring diagram for the project, showing the connections between the ESP32, sensors, and actuators.
 
 
-![Project Wiring Diagram](Gas and Fire Detection System.jpg)
+![Project Wiring Diagram](wiring-diagram.jpg)
 ```
 
 ---
