@@ -8,8 +8,6 @@
 
 **An intelligent IoT-based safety system that detects gas leaks and fire, with real-time monitoring via Blynk app and automated response mechanisms.**
 
-[Features](#-features) • [Hardware](#-hardware-requirements) • [Installation](#-installation) • [Usage](#-usage) • [Troubleshooting](#-troubleshooting)
-
 </div>
 
 ---
@@ -88,19 +86,19 @@ Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere ga
 ```
                [ INPUTS ]                               [ ESP32 (CENTRAL PROCESSING UNIT) ]                         [ OUTPUTS ]
      ┌─────────────────────────────┐               ┌────────────────────────────────────────────┐               ┌───────────────────────────┐
-     │ Cảm biến:                   │               │ [Core 0: Communication Tasks]              │               │ Cơ cấu chấp hành:         │
-     │  • Cảm biến Gas (MQ-2)      ├──────────────►│  • TaskWebServer (Phát AP, nhận cấu hình)  │──────────────►│  • Rơ-le (Quạt thông gió) │
-     │  • Cảm biến Lửa (IR)        ├──────────────►│  • TaskBlynk (Gửi/nhận data từ Cloud)      │──────────────►│  • Rơ-le (Máy bơm nước)   │
-     │                             │               │                                            │──────────────►│  • Servo (Cửa)            │
-     │ Giao diện người dùng:       │               │ [Core 1: Real-Time Logic Tasks]            │               │                           │
-     │  • Nút nhấn (Smart Silence) ├──────────────►│  • TaskMainDisplay (Đọc/Lọc/Quyết định)    │               │ Báo động:                 │
-     │                             │               │  • TaskButton (Xử lý nút nhấn, chống dội)  │──────────────►│  • Còi (Buzzer)           │
-     └─────────────────────────────┘               │  • TaskBuzzer (Tạo tiếng bíp, non-blocking)│──────────────►│  • Đèn LED (Trạng thái)   │
+     │ Sensors:                    │               │ [Core 0: Communication Tasks]              │               │ Actuators:                │
+     │  • Gas Sensor (MQ-2)        ├──────────────►│  • TaskWebServer (AP broadcast, config)    │──────────────►│  • Relay (Fan)            │
+     │  • Flame Sensor (IR)        ├──────────────►│  • TaskBlynk (Send/receive from Cloud)     │──────────────►│  • Relay (Water Pump)     │
+     │                             │               │                                            │──────────────►│  • Servo (Door)           │
+     │ User Interface:             │               │ [Core 1: Real-Time Logic Tasks]            │               │                           │
+     │  • Button (Smart Silence)   ├──────────────►│  • TaskMainDisplay (Read/Filter/Decision)  │               │ Alerts:                   │
+     │                             │               │  • TaskButton (Handle button, debounce)    │──────────────►│  • Buzzer (Audio Alert)   │
+     └─────────────────────────────┘               │  • TaskBuzzer (Generate beep, non-blocking)│──────────────►│  • LED (Status Indicator) │
                                                    │                                            │               │                           │
-                                                   │ Giao thức I2C:                             │◄─────────────►│ Hiển thị:                 │
+                                                   │ I2C Protocol:                              │◄─────────────►│ Display:                  │
                                                    │  • (SDA / SCL)                             │               │  • LCD 16x2               │
                                                    └─────────────────────┬──────────────────────┘               └───────────────────────────┘
-                                                                (Module WiFi Tích hợp)
+                                                             (Integrated WiFi Module)
                                                                          │
                                                                          │
                                                                          ▼         
@@ -117,8 +115,6 @@ Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere ga
 ```
 
 ---
-
-## 🔧 Hardware Requirements
 
 ## 🔧 Hardware Requirements
 
@@ -210,12 +206,9 @@ lib_deps =
 
 ### Wiring Diagram
 
-```
 Below is the complete wiring diagram for the project, showing the connections between the ESP32, sensors, and actuators.
 
-
 ![Project Wiring Diagram](wiring-diagram.jpg)
-```
 
 ---
 

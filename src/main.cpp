@@ -92,13 +92,14 @@ void setup()
     pinMode(MQ2_SENSOR, INPUT);
     pinMode(RELAY_PUMP, OUTPUT);
     pinMode(BUTTON, INPUT_PULLUP);
-    pinMode(MH_SENSOR, INPUT_PULLUP);
+    //pinMode(MH_SENSOR, INPUT_PULLUP);
+    pinMode(MH_SENSOR, INPUT);
 
     digitalWrite(LED, LOW);
     digitalWrite(RELAY_FAN, OFF);
     digitalWrite(RELAY_PUMP, OFF);
     digitalWrite(BUZZER, BUZZER_OFF);
-    digitalWrite(MH_SENSOR, MH_SENSOR_ON);
+    //digitalWrite(MH_SENSOR, MH_SENSOR_ON);
 
     door.setPeriodHertz(50);          
     door.attach(SERVO, 500, 2400);
@@ -108,7 +109,10 @@ void setup()
     connectSTA();
 
     gasThreshold = EEPROM.read(202) * 100 + EEPROM.read(203);
-    if (gasThreshold > 9999)    gasThreshold = GAS_THRESHOLD;
+    if (gasThreshold > 9999)
+    {
+        gasThreshold = GAS_THRESHOLD;
+    }
     Serial.print("Gas Threshold: ");    Serial.println(gasThreshold);
 
     startSystem();
@@ -179,7 +183,7 @@ void TaskMainDisplay(void* pvParameters)
             if (millis() - lastUpdate >= 1000)
             {
                 int timeRemain = 60 - elapsed;
-                LCDprint(0, 1, "Wait: " + String(timeRemain) + " (s)", false);
+                LCDprint(0, 1, "Wait: " + String(timeRemain) + " (s)  ", false);
                 lastUpdate = millis();
             }
         }
@@ -295,7 +299,10 @@ void clearConfigEEPROM()
 {
     Serial.println("Clearing configuration EEPROM (0-127)...");
 
-    for (int i = 0; i < 128; i++)   EEPROM.write(i, 0);
+    for (int i = 0; i < 128; i++)
+    {
+        EEPROM.write(i, 0);
+    }
     EEPROM.commit();
 
     Serial.println("Configuration EEPROM cleared!");
@@ -306,8 +313,14 @@ void checkSensors()
     int gasValue = readMQ2();
     int fireValue = readMHSensor();
 
-    if (gasValue > gasThreshold)                       gasDetected = true;
-    else if (gasValue < gasThreshold - HYSTERESIS)     gasDetected = false;
+    if (gasValue > gasThreshold)
+    {
+        gasDetected = true;
+    }                       
+    else if (gasValue < gasThreshold - HYSTERESIS)
+    {
+        gasDetected = false;
+    }     
     fireDetected = fireValue == MH_SENSOR_ON;
 
     Serial.print("Gas: ");      Serial.print(gasValue);
@@ -337,10 +350,6 @@ void handleAlerts()
         {
             buzzerActive = true;
         }
-        else
-        {
-            buzzerActive = false;
-        }
 
         digitalWrite(LED, HIGH);
         
@@ -369,10 +378,6 @@ void handleAlerts()
         {
             buzzerActive = true;
         }
-        else
-        {
-            buzzerActive = false;
-        }
 
         digitalWrite(LED, HIGH);
         
@@ -393,17 +398,13 @@ void handleAlerts()
         }
 
         LCDprint(4, 0, "WARNING", true);
-        LCDprint(2, 1, "GAS DETECTED", true);
+        LCDprint(2, 1, "GAS DETECTED", false);
     }
     else if (!gasDetected && fireDetected)
     {
         if (!userSilencedBuzzer) 
         {
             buzzerActive = true;
-        }
-        else
-        {
-            buzzerActive = false;
         }
 
         digitalWrite(LED, HIGH);
@@ -450,10 +451,12 @@ void handleAlerts()
 
 void LCDprint(int columns, int rows, String message, bool isClear)
 {
-    if (isClear)    LCD.clear();
+    if (isClear)
+    {
+        LCD.clear();
+    }
 
-    LCD.setCursor(columns, rows);
-    LCD.print(message);
+    LCD.setCursor(columns, rows);   LCD.print(message);
 }
 
 void startLCD()
@@ -526,8 +529,14 @@ void closeDoor()
 
 void controlDoor(bool ONOFF)
 {
-    if (ONOFF)  openDoor();
-    else        closeDoor();
+    if (ONOFF)
+    {
+        openDoor();
+    }
+    else
+    {
+        closeDoor();
+    }
 }
 
 void buzzerWarning()
@@ -1179,7 +1188,10 @@ void switchAPmode()
 
 void Timer()
 {
-    if (blynkConnect) Blynk.virtualWrite(GAS_PIN, readMQ2());
+    if (blynkConnect)
+    {
+        Blynk.virtualWrite(GAS_PIN, readMQ2());
+    }
 }
 
 BLYNK_WRITE(RELAY_PIN)
@@ -1192,14 +1204,17 @@ BLYNK_WRITE(RELAY_PIN)
             digitalWrite(RELAY_FAN, OFF);
             digitalWrite(RELAY_PUMP, OFF);
             break;
+
         case 1:
             digitalWrite(RELAY_FAN, ON);
             digitalWrite(RELAY_PUMP, OFF);
             break;
+
         case 2:
             digitalWrite(RELAY_FAN, OFF);
             digitalWrite(RELAY_PUMP, ON);
             break;
+            
         case 3:
             digitalWrite(RELAY_FAN, ON);
             digitalWrite(RELAY_PUMP, ON);
