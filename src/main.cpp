@@ -20,10 +20,12 @@ WebServer server(80);
 LiquidCrystal_I2C LCD(0x27, 16, 2);
 SimpleKalmanFilter filter(2, 2, 0.1);
 
+int relayState = 0;
 int HYSTERESIS = 100;
 int gasThreshold = 22;
 
 bool doorState = OFF;
+bool autoManual = AUTO;
 bool buttonState = HIGH;
 bool gasDetected = false;
 bool fireDetected = false;
@@ -38,6 +40,7 @@ unsigned long startupTime = 0;
 unsigned long debounceDelay = 50;
 unsigned long lastSensorCheck = 0;
 unsigned long lastDebounceTime = 0;
+unsigned long deviceOffStartTime = 0;
 
 TaskHandle_t TaskBlynk_Handle = NULL;
 TaskHandle_t TaskBuzzer_Handle = NULL;
@@ -53,6 +56,7 @@ void setupLCD();
 void printMQ2();
 void openDoor();
 void closeDoor();
+void printMode();
 void connectSTA();
 void configPage();
 void startSystem();
@@ -60,31 +64,34 @@ void switchAPmode();
 void checkSensors();
 void handleAlerts();
 void buzzerWarning();
+void printRelayState();
+void printServoState();
 void sendDatatoBlynk();
 void sendSuccessPage();
 void readConfigEEPROM();
 void clearConfigEEPROM();
+void checkSwitchToAuto();
 void handleConfigSubmit();
+void handleNotifications();
 void controlDoor(bool ONOFF);
+void controlRelay(int state);
 void TaskBlynk(void* pvParameters);
 void TaskBuzzer(void* pvParameters);
 void TaskButton(void* pvParameters);
 void TaskWebServer(void* pvParameters);
 void sendErrorPage(String errorMessage);
 void TaskMainDisplay(void* pvParameters);
+void sendRelayStateToBlynk(int relayState);
 void writeThresholdEEPROM(int gasThreshold);
 void LCDprint(int columns, int rows, String message, bool isClear);
 
 void setup()
 {
     EEPROM.begin(512);
-    Serial.begin(9600);
-
-    Serial.println("System Starting...");
 
     setupLCD();
 
-    WiFi.mode(WIFI_AP_STA);     Serial.println("Configuring WiFi...");
+    WiFi.mode(WIFI_AP_STA);
     
     pinMode(LED, OUTPUT);
     pinMode(BUZZER, OUTPUT);
@@ -92,16 +99,14 @@ void setup()
     pinMode(MQ2_SENSOR, INPUT);
     pinMode(RELAY_PUMP, OUTPUT);
     pinMode(BUTTON, INPUT_PULLUP);
-    //pinMode(MH_SENSOR, INPUT_PULLUP);
     pinMode(MH_SENSOR, INPUT);
 
     digitalWrite(LED, LOW);
     digitalWrite(RELAY_FAN, OFF);
     digitalWrite(RELAY_PUMP, OFF);
     digitalWrite(BUZZER, BUZZER_OFF);
-    //digitalWrite(MH_SENSOR, MH_SENSOR_ON);
 
-    door.setPeriodHertz(50);          
+    door.setPeriodHertz(50); 
     door.attach(SERVO, 500, 2400);
     closeDoor();
 
@@ -113,19 +118,20 @@ void setup()
     {
         gasThreshold = GAS_THRESHOLD;
     }
-    Serial.print("Gas Threshold: ");    Serial.println(gasThreshold);
+
+    autoManual = EEPROM.read(201);
+    if (autoManual > 1)
+    {
+        autoManual = AUTO;
+    }
 
     startSystem();
-
-    Serial.println("\nCreating FreeRTOS Tasks...");
 
     xTaskCreatePinnedToCore(TaskWebServer,   "TaskWebServer",   8192, NULL, 5, &TaskWebServer_Handle,   0);
     xTaskCreatePinnedToCore(TaskBlynk,       "TaskBlynk",       8192, NULL, 5, &TaskBlynk_Handle,       0);
     xTaskCreatePinnedToCore(TaskMainDisplay, "TaskMainDisplay", 4096, NULL, 5, &TaskMainDisplay_Handle, 1);
     xTaskCreatePinnedToCore(TaskBuzzer,      "TaskBuzzer",      2048, NULL, 5, &TaskBuzzer_Handle,      1);
     xTaskCreatePinnedToCore(TaskButton,      "TaskButton",      2048, NULL, 5, &TaskButton_Handle,      1);
-
-    Serial.println("All Tasks created successfully!\n");
 }
 
 void loop()
@@ -135,8 +141,6 @@ void loop()
 
 void TaskWebServer(void* pvParameters)
 {
-    Serial.println("[TaskWebServer] Started");
-
     while (true)
     {
         if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA)
@@ -150,8 +154,6 @@ void TaskWebServer(void* pvParameters)
 
 void TaskBlynk(void* pvParameters)
 {
-    Serial.println("[TaskBlynk] Started");
-
     sendDatatoBlynk();
 
     while (true)
@@ -170,10 +172,7 @@ void TaskMainDisplay(void* pvParameters)
 {
     delay(1000);
     
-    Serial.println("[TaskMainDisplay] Started");
-
     startupTime = millis();
-
     while (!startupComplete)
     {
         unsigned long elapsed = (millis() - startupTime) / 1000;
@@ -190,20 +189,24 @@ void TaskMainDisplay(void* pvParameters)
         else
         {
             startupComplete = true;
+            
             LCDprint(0, 0, "System's ready", true);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             LCD.clear();
-
-            Serial.println("[TaskMainDisplay] Warmup completed - System ready!");
         }
     }
 
-    printMQ2();
+    LCD.clear();    printMQ2();     printMode();    printRelayState();      printServoState();
 
     while (true)
     {
         checkSensors();
-        handleAlerts();
+        if (autoManual == AUTO)
+        {
+            handleAlerts();
+        }
+        handleNotifications();
+        checkSwitchToAuto();
 
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
@@ -211,8 +214,6 @@ void TaskMainDisplay(void* pvParameters)
 
 void TaskBuzzer(void* pvParameters)
 {
-    Serial.println("[TaskBuzzer] Started");
-
     while (true)
     {
         if (buzzerActive)
@@ -230,8 +231,6 @@ void TaskBuzzer(void* pvParameters)
 
 void TaskButton(void* pvParameters)
 {
-    Serial.println("[TaskButton] Started");
-
     while (true)
     {
         int buttonRead = digitalRead(BUTTON);
@@ -247,8 +246,6 @@ void TaskButton(void* pvParameters)
                 buttonState = buttonRead;
                 if (buttonState == LOW)
                 {
-                    Serial.println("[TaskButton] Button pressed - Stoping alerts!");
-                    
                     buzzerActive = false;
                     userSilencedBuzzer = true;
                     
@@ -270,42 +267,41 @@ void TaskButton(void* pvParameters)
 
 void readConfigEEPROM()
 {
-    Serial.println("\nReading Configuration from EEPROM");
-
     for (int i = 0; i < 32; i++)
     {
         char c = char(EEPROM.read(i));
-        if (c != 0 && c != 255) EEPROMssid += c;
+        if (c != 0 && c != 255)
+        {
+            EEPROMssid += c;
+        }
     }
 
     for (int i = 32; i < 96; i++)
     {
         char c = char(EEPROM.read(i));
-        if (c != 0 && c != 255) EEPROMpassword += c;
+        if (c != 0 && c != 255)
+        {
+            EEPROMpassword += c;
+        }
     }
 
     for (int i = 96; i < 128; i++)
     {
         char c = char(EEPROM.read(i));
-        if (c != 0 && c != 255) EEPROMblynkToken += c;
+        if (c != 0 && c != 255)
+        {
+            EEPROMblynkToken += c;
+        }
     }
-
-    Serial.print("SSID: ");         Serial.println(EEPROMssid);
-    Serial.print("Password: ");     Serial.println(EEPROMpassword);
-    Serial.print("Blynk Token: ");  Serial.println(EEPROMblynkToken);
 }
 
 void clearConfigEEPROM()
 {
-    Serial.println("Clearing configuration EEPROM (0-127)...");
-
     for (int i = 0; i < 128; i++)
     {
         EEPROM.write(i, 0);
     }
     EEPROM.commit();
-
-    Serial.println("Configuration EEPROM cleared!");
 }
 
 void checkSensors()
@@ -321,24 +317,15 @@ void checkSensors()
     {
         gasDetected = false;
     }     
-    fireDetected = fireValue == MH_SENSOR_ON;
-
-    Serial.print("Gas: ");      Serial.print(gasValue);
-    Serial.print(" | Fire: ");  Serial.println(fireValue);
+    fireDetected = (fireValue == MH_SENSOR_ON);
 }
 
 void handleAlerts()
-{
+{   
     static bool lastAlertState = false;
     bool currentAlertState = (gasDetected || fireDetected);
-
     if (currentAlertState && !lastAlertState)
     {
-        if (userSilencedBuzzer)
-        {
-            Serial.println("Reactivating Buzzer");
-        }
-
         buzzerActive = true;
         userSilencedBuzzer = false;
     }
@@ -353,24 +340,14 @@ void handleAlerts()
 
         digitalWrite(LED, HIGH);
         
-        openDoor(); doorState = ON;
+        doorState = ON;     controlDoor(doorState);
         
-        digitalWrite(RELAY_FAN, ON);
-        digitalWrite(RELAY_PUMP, ON);
+        relayState = 3;     controlRelay(relayState);
+        
+        Blynk.virtualWrite(SERVO_PIN, 1);
+        Blynk.virtualWrite(RELAY_PIN, 3);
 
-        if (!sendNotificationsOnce && blynkConnect)
-        {
-            Blynk.logEvent("gas_fire_detection", "WARNING: FIRE & GAS DETECTED!");
-            Blynk.virtualWrite(SERVO_PIN, 1);
-            Blynk.virtualWrite(RELAY_PIN, 3);
-
-            Serial.println("WARNING: GAS & FIRE DETECTED!");
-
-            sendNotificationsOnce = true;
-        }
-
-        LCDprint(4, 0, "WARNING!", true);
-        LCDprint(2, 1, "GAS & FIRE", false);
+        delay(1000);
     }
     else if (gasDetected && !fireDetected) 
     {
@@ -381,24 +358,14 @@ void handleAlerts()
 
         digitalWrite(LED, HIGH);
         
-        openDoor();     doorState = ON;
+        doorState = ON;     controlDoor(doorState);
         
-        digitalWrite(RELAY_FAN, ON);
-        digitalWrite(RELAY_PUMP, OFF);
+        relayState = 1;     controlRelay(relayState);
 
-        if (!sendNotificationsOnce && blynkConnect) 
-        {
-            Blynk.logEvent("gas_fire_detection", "GAS CONCENTRATION HIGH!");
-            Blynk.virtualWrite(SERVO_PIN, 1);
-            Blynk.virtualWrite(RELAY_PIN, 1);
+        Blynk.virtualWrite(SERVO_PIN, 1);
+        Blynk.virtualWrite(RELAY_PIN, 1);
 
-            Serial.println("WARNING: GAS CONCENTRATION HIGH!");
-
-            sendNotificationsOnce = true;
-        }
-
-        LCDprint(4, 0, "WARNING", true);
-        LCDprint(2, 1, "GAS DETECTED", false);
+        delay(1000);
     }
     else if (!gasDetected && fireDetected)
     {
@@ -409,20 +376,73 @@ void handleAlerts()
 
         digitalWrite(LED, HIGH);
         
-        openDoor();     doorState = ON;
-
-        digitalWrite(RELAY_FAN, OFF);
-        digitalWrite(RELAY_PUMP, ON);
+        doorState = ON;     controlDoor(doorState);
         
+        relayState = 2;     controlRelay(relayState);
+
+        Blynk.virtualWrite(SERVO_PIN, 1);
+        Blynk.virtualWrite(RELAY_PIN, 2);
+
+        delay(1000);
+    }
+    else
+    {
+        digitalWrite(LED, LOW);
+        
+        doorState = OFF;    controlDoor(doorState);
+        
+        relayState = 0;     controlRelay(relayState);
+
+        Blynk.virtualWrite(SERVO_PIN, 0);
+        Blynk.virtualWrite(RELAY_PIN, 0);
+    }
+}
+
+void handleNotifications()
+{
+    if (gasDetected && fireDetected)
+    {
+        if (!sendNotificationsOnce && blynkConnect)
+        {
+            Blynk.logEvent("gas_fire_detection", "FIRE & GAS DETECTED!");
+            sendNotificationsOnce = true;
+        }
+
+        if (!userSilencedBuzzer)
+        {
+            buzzerActive = true;
+        }
+
+        LCDprint(4, 0, "WARNING", true);
+        LCDprint(1, 1, "GAS AND FIRE", false);
+    }
+    else if (gasDetected && !fireDetected)
+    {
+        if (!sendNotificationsOnce && blynkConnect)
+        {
+            Blynk.logEvent("gas_fire_detection", "GAS CONCENTRATION HIGH!");
+            sendNotificationsOnce = true;
+        }
+
+        if (!userSilencedBuzzer)
+        {
+            buzzerActive = true;
+        }
+
+        LCDprint(4, 0, "WARNING", true);
+        LCDprint(2, 1, "GAS DETECTED", false);
+    }
+    else if (!gasDetected && fireDetected)
+    {
         if (!sendNotificationsOnce && blynkConnect)
         {
             Blynk.logEvent("gas_fire_detection", "FIRE DETECTED!");
-            Blynk.virtualWrite(SERVO_PIN, 1);
-            Blynk.virtualWrite(RELAY_PIN, 2);
-
-            Serial.println("WARNING: FIRE DETECTED!");
-
             sendNotificationsOnce = true;
+        }
+
+        if (!userSilencedBuzzer)
+        {
+            buzzerActive = true;
         }
 
         LCDprint(4, 0, "WARNING", true);
@@ -430,22 +450,75 @@ void handleAlerts()
     }
     else
     {
+        sendNotificationsOnce = false;
+        
+        LCD.clear();    delay(20);
+        printMQ2();     printMode();    printRelayState();      printServoState();
+
         buzzerActive = false;
         userSilencedBuzzer = false;
+    }
 
-        digitalWrite(LED, LOW);
-        
-        closeDoor();    doorState = OFF;
-        
-        digitalWrite(RELAY_FAN, OFF);
-        digitalWrite(RELAY_PUMP, OFF);
+    delay(1000);
+}
 
-        Blynk.virtualWrite(SERVO_PIN, 0);
-        Blynk.virtualWrite(RELAY_PIN, 0);
+void checkSwitchToAuto()
+{
+    if (autoManual == MANUAL)
+    {
+        if (relayState == 0 && doorState == OFF)
+        {
+            if (deviceOffStartTime == 0)
+            {
+                deviceOffStartTime = millis();
+            }
+            else if (millis() - deviceOffStartTime >= 5000)
+            {
+                autoManual = AUTO;
+                EEPROM.write(201, AUTO);    EEPROM.commit();
 
-        sendNotificationsOnce = false;
+                if (blynkConnect)
+                {
+                    Blynk.virtualWrite(AUTOMANUAL_PIN, AUTO);
+                }
 
-        printMQ2();
+                printMode();
+                deviceOffStartTime = 0;
+            }
+        }
+        else
+        {
+            deviceOffStartTime = 0;
+        }
+    }
+}
+
+void printMode()
+{
+    if (autoManual == AUTO)
+    {
+        LCDprint(12, 0, "AUTO", false);
+    }
+    else
+    {
+        LCDprint(12, 0, "MNL ", false);
+    }
+}
+
+void printRelayState()
+{
+    LCDprint(0, 1, "RL:" + String(relayState), false);
+}
+
+void printServoState()
+{
+    if (doorState == ON)
+    {
+        LCDprint(6, 1, "SRV:OPEN ", false);
+    }
+    else
+    {
+        LCDprint(6, 1, "SRV:CLOSE", false);
     }
 }
 
@@ -499,9 +572,7 @@ int readMQ2()
 void printMQ2()
 {
     int MQ2value = readMQ2();
-
-    LCDprint(0, 0, "System running", true);
-    LCDprint(0, 1, "Gas:" + String(MQ2value) + "ppm  ", false);
+    LCDprint(0, 0, "GAS:" + String(MQ2value) + "PPM", false);
 }
 
 void writeThresholdEEPROM(int gasThreshold)
@@ -512,9 +583,6 @@ void writeThresholdEEPROM(int gasThreshold)
     EEPROM.write(202, firstTwoDigits);
     EEPROM.write(203, secondTwoDigits);
     EEPROM.commit();
-
-    Serial.print("Threshold saved to EEPROM: ");
-    Serial.println(gasThreshold);
 }
 
 void openDoor()
@@ -536,6 +604,32 @@ void controlDoor(bool ONOFF)
     else
     {
         closeDoor();
+    }
+}
+
+void controlRelay(int state)
+{
+    switch (state)
+    {
+        case 0:
+            digitalWrite(RELAY_FAN, OFF);
+            digitalWrite(RELAY_PUMP, OFF);
+            break;
+
+        case 1:
+            digitalWrite(RELAY_FAN, ON);
+            digitalWrite(RELAY_PUMP, OFF);
+            break;
+
+        case 2:
+            digitalWrite(RELAY_FAN, OFF);
+            digitalWrite(RELAY_PUMP, ON);
+            break;
+            
+        case 3:
+            digitalWrite(RELAY_FAN, ON);
+            digitalWrite(RELAY_PUMP, ON);
+            break;
     }
 }
 
@@ -827,8 +921,6 @@ void configPage()
 
 void handleConfigSubmit()
 {
-    Serial.println("\n[WebServer] Configuration Submitted!");
-
     vTaskSuspend(TaskMainDisplay_Handle);
 
     if (server.hasArg("ssid") && server.hasArg("token"))
@@ -866,23 +958,6 @@ void handleConfigSubmit()
             return;
         }
 
-        Serial.println("Received Credentials:");
-        Serial.print("\tSSID: ");       
-        Serial.println(WEBPAGEssid);
-        Serial.print("\tPassword: "); 
-
-        if (WEBPAGEpassword.length() == 0) 
-        {
-            Serial.println("[EMPTY - Open Network]");
-        } 
-        else 
-        {
-            Serial.println(WEBPAGEpassword);
-        }
-
-        Serial.print("\tToken: ");      
-        Serial.println(WEBPAGEblynkToken);
-
         LCDprint(0, 0, "Config WiFi STA", true);
         LCDprint(0, 1, "Please Check", false);
         delay(2000);
@@ -917,14 +992,12 @@ void handleConfigSubmit()
         }
         
         EEPROM.commit();
-        Serial.println("Credentials saved to EEPROM!");
 
         sendSuccessPage();
 
         LCDprint(0, 0, "    RESTART   ", true);      delay(2000);
         LCDprint(0, 1, "     DONE     ", false);     delay(2000);
 
-        Serial.println("Restarting ESP32...");
         ESP.restart();
     }
     else
@@ -1075,11 +1148,6 @@ void connectSTA()
 {
     if (EEPROMssid.length() > 1)
     {
-        Serial.println("\nAttemping WiFi Connection");
-        Serial.print("SSID: ");         Serial.println(EEPROMssid);
-        Serial.print("Password: ");     Serial.println(EEPROMpassword);
-        Serial.print("Blynk Token: ");  Serial.println(EEPROMblynkToken);
-
         WiFi.begin(EEPROMssid.c_str(), EEPROMpassword.c_str());
 
         int countConnect = 0;
@@ -1099,38 +1167,28 @@ void connectSTA()
 
             if (countConnect++ == 20)
             {
-                Serial.println("\nConnection Failed! - Timeout after 20 attemps");
-
                 LCDprint(0, 0, "Disconnect WiFi", true);
                 LCDprint(0, 1, "Check Again", false);
                 delay(2000);
 
                 LCDprint(0, 0, "Connect ESP32", true);
                 LCDprint(0, 1, "192.168.4.1", false);
-                delay(2000);
+                delay(10000);
 
                 switchAPmode();
                 return;
             }
         }
 
-        Serial.println("\nWiFi Connected!");
-        Serial.print("IP Address: ");
-        Serial.println(WiFi.localIP());
-
         LCDprint(0, 0, "WiFi Connected", true);
         LCDprint(0, 1, EEPROMssid, false);
         delay(2000);
-
-        Serial.println("Connecting to Blynk");
 
         Blynk.config(EEPROMblynkToken.c_str());
         blynkConnect = Blynk.connect();
 
         if (blynkConnect == false)
         {
-            Serial.println("Blynk Connection Failed!");
-
             LCDprint(0, 0, "Disconnect Blynk", true);
             LCDprint(0, 1, "Check Again", false);
             delay(3000);
@@ -1139,23 +1197,16 @@ void connectSTA()
         }
         else
         {
-            Serial.println("Blynk Connected!");
-
             LCDprint(0, 0, "Blynk Connected", true);
             delay(1000);
 
             timer.setInterval(2000L, Timer);
 
             sendDatatoBlynk();
-
-            Serial.println("System Ready\n");
         }
     }
     else
     {
-        Serial.println("No WiFi credentials found in EEPROM");
-        Serial.println("Switching to Access Point mode for configuring...");
-
         LCDprint(0, 0, "No WiFi Config", true);
         LCDprint(0, 1, "Setup Required", false);
 
@@ -1165,23 +1216,14 @@ void connectSTA()
 
 void switchAPmode()
 {
-    Serial.println("\nSwitching to Access Point mode");
-
     WiFi.softAP(APssid, APpassword);    delay(100);
 
     IPAddress apIP = WiFi.softAPIP();
-    Serial.print("Access Point IP Address: ");
-    Serial.println(apIP);
 
     server.on("/", configPage);
     server.on("/save", handleConfigSubmit);
     
     server.begin();
-
-    Serial.println("WebServer Started");
-    Serial.println("1. Connect to WiFi: 'ESP32'");
-    Serial.println("2. Open Browser: 192.168.4.1");
-    Serial.println("3. Configure WiFi and Blynk credentials");
 
     delay(300);
 }
@@ -1196,36 +1238,44 @@ void Timer()
 
 BLYNK_WRITE(RELAY_PIN)
 {
-    int relayState = param.asInt();
+    int state = param.asInt();
 
-    switch (relayState) 
+    switch (state)
     {
         case 0:
+            relayState = 0;
             digitalWrite(RELAY_FAN, OFF);
             digitalWrite(RELAY_PUMP, OFF);
             break;
 
         case 1:
+            relayState = 1;
             digitalWrite(RELAY_FAN, ON);
             digitalWrite(RELAY_PUMP, OFF);
             break;
 
         case 2:
+            relayState = 2;
             digitalWrite(RELAY_FAN, OFF);
             digitalWrite(RELAY_PUMP, ON);
             break;
             
         case 3:
+            relayState = 3;
             digitalWrite(RELAY_FAN, ON);
             digitalWrite(RELAY_PUMP, ON);
             break;
     }
+
+    printRelayState();
 }
 
 BLYNK_WRITE(SERVO_PIN)
 {
     doorState = param.asInt();
     controlDoor(doorState);
+
+    printServoState();
 }
 
 BLYNK_WRITE(THRESHOLD_PIN)
@@ -1235,20 +1285,34 @@ BLYNK_WRITE(THRESHOLD_PIN)
 
     vTaskSuspend(TaskMainDisplay_Handle);
 
-    Serial.print("Threshold updated to: ");
-    Serial.println(gasThreshold);
-    
-    Timer();
+    delay(100);
+    LCDprint(0, 0, "Threshold set to", true);
+    char str[20];   sprintf(str, "%d", gasThreshold);
+    LCDprint(6, 1, str, false);
+    delay(1000);    LCD.clear();    delay(100);
+
+    printMQ2();     printMode();    printRelayState();      printServoState();      delay(100);
 
     vTaskResume(TaskMainDisplay_Handle);
 }
 
+BLYNK_WRITE(AUTOMANUAL_PIN)
+{
+    autoManual = param.asInt();
+
+    EEPROM.write(201, autoManual);  EEPROM.commit();
+    
+    printMode();
+}
+
+void sendRelayStateToBlynk(int relayState)
+{
+    Blynk.virtualWrite(RELAY_PIN, relayState);
+}
+
 void sendDatatoBlynk()
 {
-    if (blynkConnect)
-    {
-        Blynk.virtualWrite(GAS_PIN, readMQ2());
-        Blynk.virtualWrite(THRESHOLD_PIN, gasThreshold);
-        Blynk.virtualWrite(SERVO_PIN, doorState);
-    }
+    Blynk.virtualWrite(GAS_PIN, readMQ2());
+    Blynk.virtualWrite(THRESHOLD_PIN, gasThreshold);
+    Blynk.virtualWrite(AUTOMANUAL_PIN, autoManual);
 }

@@ -20,8 +20,15 @@
 #define RELAY_PIN V1
 #define SERVO_PIN V2
 #define THRESHOLD_PIN V3
+#define AUTOMANUAL_PIN V4
 
 #define ON 1
 #define OFF 0
 
+#define AUTO 1
+#define MANUAL 0
+
 #define GAS_THRESHOLD 2200
+
+// SDA - GPIO 21
+// SCL - GPIO 22

@@ -1,83 +1,341 @@
-# 🔥 Gas & Fire Detection System with ESP32
+# 🔥 Gas & Fire Detection System
 
 <div align="center">
 
-![Project Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-ESP32-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![System Status](https://img.shields.io/badge/status-active-success.svg)
+![Platform](https://img.shields.io/badge/platform-ESP32-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![IoT](https://img.shields.io/badge/IoT-Blynk-orange.svg)
 
-**An intelligent IoT-based safety system that detects gas leaks and fire, with real-time monitoring via Blynk app and automated response mechanisms.**
+**An intelligent IoT-based safety system for real-time gas leakage and fire detection with automated emergency response**
+
+[Features](#-features) • [Hardware](#%EF%B8%8F-hardware-requirements) • [Installation](#-installation) • [Usage](#-usage) • [Configuration](#%EF%B8%8F-configuration)
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## 📋 Description
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [System Architecture](#-system-architecture)
-- [Hardware Requirements](#-hardware-requirements)
-- [Software Requirements](#-software-requirements)
-- [Pin Configuration](#-pin-configuration)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [Blynk Setup](#-blynk-setup)
-- [Web Interface](#-web-interface)
-- [How It Works](#-how-it-works)
-- [License](#-license)
+This project implements a comprehensive safety monitoring system using ESP32 microcontroller that detects dangerous gas concentrations and fire hazards in real-time. The system automatically activates ventilation fans, water pumps, and emergency doors while sending instant notifications to your smartphone via Blynk IoT platform.
+
+### Key Capabilities
+- 🌡️ **Continuous Monitoring** - Real-time gas concentration tracking with Kalman filtering
+- 🔔 **Instant Alerts** - Audio buzzer + LED indicators + push notifications
+- 🤖 **Automated Response** - Smart activation of fans, pumps, and emergency exits
+- 📱 **Remote Control** - Monitor and control via Blynk mobile app from anywhere
+- 🌐 **Web Configuration** - Easy WiFi setup through captive portal
+- 🧠 **Dual-Core Processing** - FreeRTOS task management for responsive operation
 
 ---
 
-## 🌟 Overview
+## 🛠️ Hardware Requirements
 
-This project implements a **comprehensive safety monitoring system** using ESP32 microcontroller that can:
+| Model | Quantity | Purpose |
+|-----------|----------|---------|
+| [ESP32](https://banlinhkien.com/kit-wifi-esp32-espwroom32s-p6649289.html) | 1 | Main processing unit with WiFi |
+| [MQ-2](https://banlinhkien.com/module-cam-bien-khi-gas-mq2-p6646888.html) | 1 | Detects LPG, smoke, methane, CO |
+| [Flame Sensor](https://banlinhkien.com/module-cam-bien-phat-hien-lua-flame-sensor-p6646877.html) | 1 | Infrared fire detection |
+| [LCD 16x2 (I2C)](https://linhkienx.com/man-hinh-lcd-1602-nen-xanh-la-chu-den-5vdc-kem-i2c-driver) | 1 | Real-time status display |
+| [Servo SG90](https://banlinhkien.com/dong-co-servo-sg90-goc-quay-180-p6648774.html) | 1 | Emergency door/window control |
+| [Relay (2-channel)](https://banlinhkien.com/module-relay-mini-2-kenh-5v10a-blk-p17935548.html) | 1 | Fan & pump switching |
+| [Buzzer](https://linhkienx.com/1209-buzzer-coi-chip-12x9mm-93db-xuyen-lo) | 1 | Audio warning system |
+| [LED](https://linhkienx.com/led-do-3mm-sieu-sang-dau-tron-trong-suot-chan-dai) | 1 | Visual status indicator |
+| [Button](https://linhkienx.com/nut-nhan-6x6mm-cao-4-3mm-4-chan-xuyen-lo) | 1 | Manual buzzer silence |
 
-- 🔍 **Detect gas leaks** (LPG, propane, methane, etc.) using MQ-2 sensor
-- 🔥 **Detect fire** using infrared flame sensor
-- 📱 **Send real-time alerts** to your smartphone via Blynk
-- 🚨 **Activate automated responses** (buzzer, ventilation fan, water pump)
-- 🚪 **Open emergency ventilation door** automatically
-- 💻 **Monitor and control** remotely through Blynk mobile app
-- 🌐 **Easy WiFi configuration** through captive web portal (supports open networks!)
-- 🔕 **Smart buzzer control** - Silence buzzer while keeping safety systems active
+### Additional Components
+- Jumper wires (Male-to-Male, Male-to-Female)
+- Breadboard
+- USB cable
+- Enclosure box (recommended for safety)
+- Adapter 5V2A
 
-Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere gas and fire safety is critical!
+---
+
+## 💻 Software Requirements
+
+### Development Environment
+- [PlatformIO IDE](https://platformio.org/) (VS Code extension)
+- [Arduino Framework](https://www.arduino.cc/)
+
+### Required Libraries
+```ini
+blynkkk/Blynk @ ^1.3.2
+marcoschwartz/LiquidCrystal_I2C @ ^1.1.4
+denyssene/SimpleKalmanFilter @ ^0.1.0
+madhephaestus/ESP32Servo @ ^3.0.5
+```
+
+### Cloud Service
+- [Blynk IoT Platform](https://blynk.io/) - Free account required
 
 ---
 
 ## ✨ Features
 
-### 🛡️ Safety Features
-- ✅ **Dual Hazard Detection**: Gas concentration & flame detection
-- ✅ **Instant Alerts**: Buzzer alarm + Blynk push notifications
-- ✅ **Automatic Response**: Fan activation, water pump, door opening
-- ✅ **Smart Buzzer Control**: Silence buzzer without stopping safety systems
-- ✅ **Auto-Reactivation**: Buzzer reactivates on new alert after being silenced
-- ✅ **Sensor Warm-up**: 60-second calibration period on startup
+### 🎯 Core Functionality
 
-### 📱 Smart Connectivity
-- ✅ **Blynk IoT Integration**: Monitor from anywhere in the world
-- ✅ **Real-time Data**: Gas levels updated every 2 seconds
-- ✅ **Remote Control**: Control relays and door from app
-- ✅ **Customizable Threshold**: Adjust gas sensitivity remotely
-- ✅ **Event Logging**: Historical alerts stored in Blynk
+#### Intelligent Detection System
+- **Gas Monitoring**: MQ-2 sensor with Kalman filter for noise reduction
+- **Fire Detection**: IR flame sensor with digital signal processing
+- **Threshold Configuration**: Adjustable sensitivity (200-9999 PPM)
+- **Hysteresis Control**: 100 PPM buffer to prevent oscillation
 
-### 💻 User Experience
-- ✅ **16x2 LCD Display**: Shows system status and gas readings
-- ✅ **Beautiful Web Portal**: Animated, professional interface
-- ✅ **Open WiFi Support**: Configure with or without password
-- ✅ **WiFi Manager**: Easy network setup without code changes
-- ✅ **Auto-Reconnect**: Handles WiFi/Blynk disconnections
-- ✅ **Visual Feedback**: LED indicators for system status
+#### Automated Emergency Response
 
-### ⚙️ Technical Features
-- ✅ **FreeRTOS Multitasking**: Efficient parallel processing
-- ✅ **Kalman Filtering**: Noise reduction for stable readings
-- ✅ **Hysteresis Logic**: Prevents sensor fluctuation issues
-- ✅ **EEPROM Storage**: Remembers settings after power loss
-- ✅ **Dual-Core Processing**: Tasks distributed across ESP32 cores
+| Scenario | Fan | Water Pump | Door/Window | Buzzer | Notification |
+|----------|-----|------------|-------------|--------|--------------|
+| Gas Only | ✅ ON | ⭕ OFF | ✅ OPEN | 🔔 ON | "GAS DETECTED" |
+| Fire Only | ⭕ OFF | ✅ ON | ✅ OPEN | 🔔 ON | "FIRE DETECTED" |
+| Gas + Fire | ✅ ON | ✅ ON | ✅ OPEN | 🔔 ON | "EMERGENCY!" |
+| Normal | ⭕ OFF | ⭕ OFF | ⭕ CLOSED | 🔇 OFF | - |
+
+#### Operating Modes
+- **AUTO Mode**: System responds automatically to threats
+- **MANUAL Mode**: User controls via Blynk app/button
+- **Smart Auto-Resume**: Returns to AUTO after 5s when all devices turn off
+
+#### User Interface
+- **LCD Display**: Shows gas PPM, relay states, servo status, mode
+- **Smart Buzzer Silence**: Press button to mute alarm (safety first!)
+- **Web Portal**: Beautiful configuration page with real-time validation
+- **Mobile App**: Full control through Blynk dashboard
+
+### 🌐 Connectivity
+
+#### WiFi Configuration
+1. **First Boot**: ESP32 creates "ESP32" access point
+2. **Connect**: Join network and open `192.168.4.1`
+3. **Configure**: Enter WiFi credentials + Blynk token
+4. **Automatic**: System connects and operates
+
+#### Blynk Integration
+- **V0**: Gas concentration (PPM) - real-time graph
+- **V1**: Relay control (0=Off, 1=Fan, 2=Pump, 3=Both)
+- **V2**: Servo control (0=Close, 1=Open)
+- **V3**: Threshold setting (200-9999 PPM slider)
+- **V4**: AUTO/MANUAL mode switch
+
+---
+
+## 🔌 Wiring Diagram
+
+### Pin Configuration
+
+```
+ESP32 GPIO Pinout Map
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📥 INPUTS (Sensors & Controls)
+├─ GPIO 35 (ADC)    → MQ-2 Gas Sensor (Analog Out)
+├─ GPIO 34 (ADC)    → Flame Sensor (Digital Out)
+└─ GPIO 4 (INPUT)   → Push Button (Active LOW)
+
+📤 OUTPUTS (Actuators & Indicators)
+├─ GPIO 18          → Relay Channel 1 (Fan)
+├─ GPIO 5           → Relay Channel 2 (Water Pump)
+├─ GPIO 33 (PWM)    → Servo Motor (Door/Window)
+├─ GPIO 23          → Active Buzzer
+└─ GPIO 19          → Status LED
+
+🖥️ DISPLAY (I2C Protocol)
+├─ GPIO 21 (SDA)    → LCD 16x2 Data Line
+└─ GPIO 22 (SCL)    → LCD 16x2 Clock Line
+
+⚡ POWER
+├─ 5V               → VCC for all peripherals
+└─ GND              → Common ground for all components
+```
+
+### Visual Diagram
+
+![Wiring Diagram](wiring-diagram.jpg)
+
+> ⚠️ **Safety Warning**: High voltage connections (220V AC) must be handled by qualified personnel. Ensure proper insulation and follow electrical safety codes.
+
+---
+
+## 📦 Installation
+
+### 1️⃣ Hardware Assembly
+1. Connect all components according to the wiring diagram
+2. Double-check power connections (5V to VCC, GND to GND)
+3. Secure components in enclosure with proper ventilation
+
+### 2️⃣ Software Setup
+
+#### Install PlatformIO
+```bash
+# Install VS Code
+https://code.visualstudio.com/
+
+# Install PlatformIO extension
+code --install-extension platformio.platformio-ide
+```
+
+#### Clone & Build
+```bash
+# Clone repository
+git clone https://github.com/coldbrewtonic22/gas-fire-detection.git
+cd gas-fire-detection
+
+# Open in VS Code
+code .
+
+# Build project (PlatformIO will auto-download libraries)
+pio run
+
+# Upload to ESP32
+pio run --target upload
+
+# Monitor serial output
+pio device monitor -b 115200
+```
+
+### 3️⃣ Blynk Configuration
+
+#### Create Blynk Template
+1. Go to [Blynk Console](https://blynk.cloud/)
+2. Create new template: **"Gas and Fire Detection"**
+3. Add datastreams:
+
+| Virtual Pin | Name | Type | Range | Default |
+|-------------|------|------|-------|---------|
+| V0 | Gas PPM | Integer | 0-10000 | 0 |
+| V1 | Relay Control | Integer | 0-3 | 0 |
+| V2 | Door Control | Integer | 0-1 | 0 |
+| V3 | Threshold | Integer | 200-9999 | 2200 |
+| V4 | Mode | Integer | 0-1 | 1 |
+
+4. Configure notification event: `gas_fire_detection`
+5. Copy **Auth Token** (32 characters)
+
+#### Dashboard Widgets
+- **Gauge**: V0 (Gas PPM)
+- **Slider**: V1 (Relay: 0-3)
+- **Switch**: V2 (Door: 0/1)
+- **Slider**: V3 (Threshold: 200-9999)
+- **Switch**: V4 (AUTO=1, MANUAL=0)
+
+---
+
+## 🚀 Usage
+
+### First-Time Setup
+
+1. **Power On**: System displays startup sequence
+   ```
+   Gas and Fire
+   Detection System
+   
+   Warming Up
+   Sensors...
+   
+   Wait: 60 (s)
+   ```
+
+2. **WiFi Configuration**:
+   - LCD shows: `Connect ESP32` / `192.168.4.1`
+   - Connect phone/laptop to `ESP32` WiFi (open network)
+   - Browser opens automatically (or navigate to `192.168.4.1`)
+   - Enter WiFi SSID, Password, and Blynk Token
+   - Click **SAVE CONFIGURATION**
+
+3. **System Ready**:
+   ```
+   WiFi Connected
+   [Your Network]
+   
+   Blynk Connected
+   
+   System's Ready
+   ```
+
+### Daily Operation
+
+#### LCD Display Format
+```
+GAS:2100PPM AUTO    ← Line 1: Gas reading + Mode
+RL:0 SRV:CLOSE      ← Line 2: Relay state + Servo status
+```
+
+#### Status Codes
+- **RL:0** = All off | **RL:1** = Fan only
+- **RL:2** = Pump only | **RL:3** = Both on
+- **AUTO** = Automatic mode | **MNL** = Manual mode
+
+#### Button Functions
+| Action | Result |
+|--------|--------|
+| **Press** during alarm | Silences buzzer (devices remain active) |
+| System recovers | Buzzer re-enables automatically |
+
+#### Alert Sequence
+```
+┌─────────────────────────────────────────┐
+│  Threat Detected                        │
+├─────────────────────────────────────────┤
+│  1. LED turns ON (red)                  │
+│  2. Buzzer sounds (1s ON / 0.1s OFF)    │
+│  3. LCD shows "WARNING" message         │
+│  4. Devices activate per scenario       │
+│  5. Blynk notification sent             │
+│  6. Continues until threat clears       │
+└─────────────────────────────────────────┘
+```
+
+### Mobile App Control
+
+#### AUTO Mode (Recommended)
+- System responds automatically
+- Override possible via app
+- Returns to AUTO after 5s of inactivity
+
+#### MANUAL Mode
+- Full control via Blynk app
+- Set relay states individually
+- Open/close door manually
+- Adjust threshold in real-time
+
+---
+
+## ⚙️ Configuration
+
+### Threshold Calibration
+
+#### Via Blynk App
+1. Set mode to **MANUAL**
+2. Observe normal gas readings (V0)
+3. Set threshold ~100 PPM above normal
+4. Test with controlled gas exposure
+5. Adjust until reliable
+
+#### Via Code (`def.h`)
+```cpp
+#define GAS_THRESHOLD 2200  // Default value in PPM
+```
+
+### Hysteresis Adjustment
+Modify `main.cpp` to change turn-off threshold:
+```cpp
+int HYSTERESIS = 100;  // Gas must drop 100 PPM below threshold
+```
+
+### Buzzer Pattern
+Customize in `buzzerWarning()` function:
+```cpp
+void buzzerWarning()
+{
+    digitalWrite(BUZZER, BUZZER_ON);    delay(1000);  // ON duration
+    digitalWrite(BUZZER, BUZZER_OFF);   delay(100);   // OFF duration
+}
+```
+
+### Startup Delay
+Change sensor warm-up time (currently 60 seconds):
+```cpp
+if (elapsed < 60)  // Change 60 to desired seconds
+```
 
 ---
 
@@ -114,56 +372,82 @@ Perfect for homes, kitchens, laboratories, industrial facilities, or anywhere ga
                                                             
 ```
 
----
-
-## 🔧 Hardware Requirements
-
-This project uses standard, readily available components. The components are divided into main components (the core system) and supporting components (power, wiring, actuators, etc.).
-
-### Main Components
-
-| Component | Details | Link |
-| :--- | :--- | :--- |
-| **ESP32 DevKit** | The main microcontroller, based on the **ESP32-WROOM-32** module. It features dual-core processing, WiFi, and Bluetooth. (30-pin version) | [Link](https://banlinhkien.com/kit-wifi-esp32-espwroom32s-p6649289.html) |
-| **MQ-2 Gas Sensor** | Detects smoke, LPG, Propane, and other combustible gases. Operates at **5V** and provides both analog (A0) and digital (D0) outputs. | [Link](https://banlinhkien.com/module-cam-bien-khi-gas-mq2-p6646888.html) |
-| **IR Flame Sensor** | Detects flames by sensing infrared (IR) light. Operates at **5V** and provides a digital output (D0) when a flame is detected. | [Link](https://banlinhkien.com/module-cam-bien-phat-hien-lua-flame-sensor-p6646877.html) |
-| **SG90 Servo Motor** | A 9g micro servo used to simulate opening an emergency door/vent. Operates at **4.8V-5V** with a ~180° rotation angle. | [Link](https://banlinhkien.com/dong-co-servo-sg90-goc-quay-180-p6648774.html) |
-| **2-Channel Relay Module** | A **5V, 2-Channel** module to control high-current devices. Rated for 10A/250VAC. (This project uses it in **Active HIGH** mode via jumper). | [Link](httpsG://banlinhkien.com/module-relay-mini-2-kenh-5v10a-blk-p17935548.html) |
-| **LCD 1602 + I2C** | A 16x2 character display (green backlight) paired with an **I2C driver module** (PC8574). This simplifies wiring, requiring only 2 pins (SDA/SCL). | [Link](httpsD://linhkienx.com/man-hinh-lcd-1602-nen-xanh-la-chu-den-5vdc-kem-i2c-driver) |
-| **Active Buzzer** | A **5V** active buzzer module that produces a continuous tone when a HIGH signal is applied. Used for the audible alarm. | [Link](https://linhkienx.com/1209-buzzer-coi-chip-12x9mm-93db-xuyen-lo) |
-| **Tactile Push Button** | A 4-pin (6x6x4.3mm) momentary push button used for the "Smart Silence" feature. | [Link](httpsSA://linhkienx.com/nut-nhan-6x6mm-cao-4-3mm-4-chan-xuyen-lo) |
-| **3mm Red LED** | A standard 3mm red LED (clear lens) used as a visual alarm indicator. | [Link](https://linhkienx.com/led-do-3mm-sieu-sang-dau-tron-trong-suot-chan-dai) |
-
-### Supporting Components
-
-| Component | Details | Link |
-| :--- | :--- | :--- |
-| **5V 2A Power Adapter** | Main power supply for the ESP32 expansion board. Provides **5V at 2A** via a DC 5.5x2.1mm barrel jack. | [Link](https://banlinhkien.com/nguon-adapter-5v2a-dc5.5x2.1mm-p6651354.html) |
-| **220Ω Resistor** | A 1/4W, 5% tolerance resistor used as a current-limiter for the red LED. | [Link](httpsD://linhkienx.com/dien-tro-220-ohm-1-4w-5-4-vong-mau) |
-| **MB-102 Breadboard** | An 830-point solderless breadboard used for prototyping the signal circuit. | [Link](httpsIAS://linhkienx.com/mb-102-breadboard-cam-linh-kien-830-lo) |
-| **5V Mini Fan** | A 40x40x10mm (4010) **5V DC** fan used for gas ventilation, controlled by the relay. | [Link](httpsSA://linhkienx.com/quat-4010-40x40x10mm-5vdc) |
-| **5V Mini Water Pump** | A **5V DC** submersible mini pump (1.2-1.6L/min) used to simulate a fire suppression system, controlled by the relay. | [Link](https://linhkienx.com/may-bom-chim-mini-5v-1-2-1-6l-phut) |
-| **Jumper Wires (M-F)** | Male-to-Female jumper wires (15cm) for connecting components to the ESP32 board. | [Link](https://linhkienx.com/day-be-duc-cai-dai-15cm) |
-| **Jumper Wires (M-M)** | Male-to-Male jumper wires (15cm) for connections on the breadboard. | [Link](https://linhkienx.com/day-be-duc-duc-dai-15cm) |
+### Task Priority & Scheduling
+| Task | Core | Priority | Stack | Update Rate |
+|------|------|----------|-------|-------------|
+| TaskWebServer | 0 | 5 | 8192 Bytes | 10ms |
+| TaskBlynk | 0 | 5 | 8192 Bytes | 100ms |
+| TaskMainDisplay | 1 | 5 | 4096 Bytes | 2000ms |
+| TaskBuzzer | 1 | 5 | 2048 Bytes | 10ms |
+| TaskButton | 1 | 5 | 2048 Bytes | 10ms |
 
 ---
 
-## 💾 Software Requirements
+## 🗂️ Project Structure
 
-### Development Environment
+```
+gas-fire-detection/
+├── 📁 include
+│   └── 📄 README
+├── 📁 src
+│   ├── ⚡ config.h
+│   ├── ⚡ def.h
+│   └── ⚡ main.cpp
+├── 📝 README.md
+├── 🖼️ blynk-dashboard.jpg
+├── ⚙️ platformio.ini
+├── 🖼️ web-portal.jpg
+└── 🖼️ wiring-diagram.jpg
+```
 
-- **PlatformIO IDE** (recommended) or Arduino IDE
-- **ESP32 Board Support** (version 2.0.0 or higher)
-- **USB Drivers**: CP210x or CH340 (depending on your board)
+### File Descriptions
 
-### Required Libraries
+#### `src/main.cpp` (600+ lines)
+Core application containing:
+- FreeRTOS task definitions
+- Sensor reading & filtering
+- Emergency response logic
+- Blynk callback handlers
+- Web server & configuration portal
+- LCD display management
 
+#### `src/config.h`
+Network configuration variables:
+```cpp
+#define APssid "ESP32"              // Access Point name
+#define APpassword ""               // AP password (empty = open)
+
+String EEPROMssid = "";             // Stored WiFi credentials
+String EEPROMpassword = "";
+String EEPROMblynkToken = "";
+```
+
+#### `src/def.h`
+Hardware definitions & constants:
+```cpp
+// Pin assignments
+#define MQ2_SENSOR 35
+#define MH_SENSOR 34
+#define BUZZER 23
+// ... etc
+
+// Blynk virtual pins
+#define GAS_PIN V0
+#define RELAY_PIN V1
+// ... etc
+
+// Default values
+#define GAS_THRESHOLD 2200
+```
+
+#### `platformio.ini`
+Build configuration:
 ```ini
-[env:esp32]
+[env:esp32dev]
 platform = espressif32
 board = esp32dev
 framework = arduino
-
+monitor_speed = 115200
 lib_deps = 
     blynkkk/Blynk@^1.3.2
     marcoschwartz/LiquidCrystal_I2C@^1.1.4
@@ -171,735 +455,202 @@ lib_deps =
     madhephaestus/ESP32Servo@^3.0.5
 ```
 
-### Mobile App
+---
 
-- **Blynk IoT** (iOS/Android)
-  - Download: [App Store](https://apps.apple.com) | [Google Play](https://play.google.com)
-  - Free account with limited energy
-  - Premium subscription for advanced features
+## 🛠️ Technologies Used
+
+### Embedded Systems
+- **Wifi BLE SoC ESP32 ESP-WROOM-32**: ESP32-D0WDQ6 Dual-core low power Xtensa® 32-bit LX6 microprocessors
+- **FreeRTOS**: Real-time operating system for task scheduling
+- **Arduino Framework**: Simplified hardware abstraction layer
+
+### Sensors & Signal Processing
+- **MQ-2 Gas Sensor**: Analog semiconductor sensor (SnO2)
+- **Kalman Filter**: Recursive noise reduction algorithm
+- **Hysteresis Control**: Prevents oscillation in threshold detection
+
+### Communication Protocols
+- **I2C**: LCD display communication (21 -> SDA, 22 -> SCL)
+- **PWM**: Servo motor control (50Hz pulse width modulation)
+- **HTTP**: Web server for configuration portal
+- **WebSocket**: Blynk real-time data streaming
+
+### IoT Platform
+- **Blynk**: Cloud-based IoT dashboard with push notifications
+- **EEPROM**: Non-volatile configuration storage
+- **mDNS**: Network service discovery (future enhancement)
+
+### Web Technologies
+- **HTML5**: Responsive configuration interface
+- **CSS3**: Gradient animations & glassmorphism design
+- **JavaScript**: Form validation & dynamic UI updates
+
+### Development Tools
+- **PlatformIO**: Cross-platform build system & IDE
+- **Git**: Version control system
+- **VS Code**: Source code editor
 
 ---
 
-## 📍 Pin Configuration
+## 🔧 Troubleshooting
 
-### ESP32 Pin Mapping
+<details>
+<summary>❌ WiFi Connection Failed</summary>
 
-```cpp
-// Sensors
-#define MQ2_SENSOR    35    // Analog input (ADC1_CH7)
-#define MH_SENSOR     34    // Digital input (ADC1_CH6)
+**Symptoms**: LCD shows "Disconnect WiFi" repeatedly
 
-// Actuators
-#define SERVO         33    // PWM output (single door servo)
-#define RELAY_FAN     18    // Fan control
-#define RELAY_PUMP    5     // Pump control
-#define BUZZER        23    // Buzzer control
-#define LED           19    // Status LED
+**Solutions**:
+1. Verify SSID and password (case-sensitive)
+2. Check if router uses 2.4GHz (ESP32 doesn't support 5GHz)
+3. Ensure router isn't in MAC address filtering mode
+4. Try connecting to an open network first
+5. Reset configuration: Hold button during power-on
 
-// User Interface
-#define BUTTON        4     // Silence buzzer button (INPUT_PULLUP)
+</details>
 
-// I2C (LCD)
-#define SDA           21    // Default I2C SDA
-#define SCL           22    // Default I2C SCL
-```
+<details>
+<summary>❌ Blynk Connection Failed</summary>
 
-### Wiring Diagram
+**Symptoms**: "Disconnect Blynk" message despite WiFi working
 
-Below is the complete wiring diagram for the project, showing the connections between the ESP32, sensors, and actuators.
+**Solutions**:
+1. Verify token is exactly 32 characters
+2. Check template ID matches in code and Blynk console
+3. Ensure device is online in Blynk console
+4. Recreate template and generate new token
+5. Check firewall isn't blocking port 80/443
 
-![Project Wiring Diagram](wiring-diagram.jpg)
+</details>
 
----
+<details>
+<summary>❌ False Gas Alarms</summary>
 
-## 🚀 Installation
+**Symptoms**: Frequent alarms with no visible threat
 
-### Step 1: Hardware Assembly
+**Solutions**:
+1. Increase threshold via Blynk (start at 3000 PPM)
+2. Let sensor warm up for full 60 seconds
+3. Ensure sensor isn't near alcohol, perfume, or cleaning products
+4. Check sensor placement (away from direct airflow)
+5. Increase hysteresis value in code
 
-1. **Connect the ESP32 to breadboard**
-2. **Wire sensors** according to pin configuration
-3. **Connect actuators** (servo, relays, buzzer, LED)
-4. **Install LCD display** with I2C adapter
-5. **Add push button** (uses internal pull-up)
-6. **Double-check connections** before powering on
+</details>
 
-⚠️ **Important**: 
-- MQ-2 sensor needs 24-48 hours of burn-in time for accurate readings
-- Use separate power supply for relays if controlling high-current devices
-- Ensure proper grounding to avoid sensor noise
-- Button uses internal pull-up - no external resistor needed
+<details>
+<summary>❌ LCD Not Displaying</summary>
 
-### Step 2: Software Installation
+**Symptoms**: Backlight on but no text
 
-#### Using PlatformIO (Recommended)
+**Solutions**:
+1. Check I2C address (use I2C scanner: usually 0x27 or 0x3F)
+2. Verify SDA/SCL connections (21/22)
+3. Adjust contrast potentiometer on LCD backpack
+4. Test with simple I2C example code
+5. Try different I2C speed in code
 
-```bash
-# 1. Install PlatformIO IDE extension in VSCode
+</details>
 
-# 2. Clone the repository
-git clone https://github.com/yourusername/gas-fire-detection-esp32.git
-cd gas-fire-detection-esp32
+<details>
+<summary>❌ Servo Jittering</summary>
 
-# 3. Open project in VSCode
-code .
+**Symptoms**: Servo vibrates or moves erratically
 
-# 4. PlatformIO will auto-install dependencies
+**Solutions**:
+1. Use external 5V power supply (not USB)
+2. Add 100µF capacitor across servo power
+3. Ensure common ground between ESP32 and power supply
+4. Check signal wire isn't near high-current paths
+5. Reduce PWM frequency if needed
 
-# 5. Edit configuration files
-# - Update Blynk template ID in main.cpp (line 2)
-# - Adjust pin numbers if needed in def.h
-
-# 6. Build and upload
-pio run --target upload
-
-# 7. Monitor serial output
-pio device monitor --baud 9600
-```
-
-#### Using Arduino IDE
-
-```bash
-# 1. Install Arduino IDE
-
-# 2. Add ESP32 board support
-# File → Preferences → Additional Board URLs:
-# https://dl.espressif.com/dl/package_esp32_index.json
-
-# 3. Install required libraries
-# Tools → Manage Libraries → Search and install:
-#   - Blynk (by Volodymyr Shymanskyy)
-#   - LiquidCrystal I2C
-#   - SimpleKalmanFilter
-#   - ESP32Servo
-
-# 4. Open main.cpp and configure Blynk credentials (lines 1-3)
-
-# 5. Select board: ESP32 Dev Module
-
-# 6. Upload to ESP32
-```
-
-### Step 3: File Structure
-
-```
-gas-fire-detection-esp32/
-│
-├── src/
-│   ├── main.cpp              # Main program file
-│   ├── def.h                 # Pin definitions
-│   └── config.h              # Configuration variables
-│
-├── include/
-│   └── README                # Include directory info
-│
-├── lib/
-│   └── README                # Library directory info
-│
-├── platformio.ini            # PlatformIO configuration
-├── README.md                 # This file
-└── LICENSE                   # License file
-```
+</details>
 
 ---
 
-## ⚙️ Configuration
+## 📸 Screenshots
 
-### 1. Blynk Configuration
+<table>
+<tr>
+<td width="50%">
 
-Edit `main.cpp` (lines 1-3):
+### 🌐 Web Configuration Portal
+![Config Portal](web-portal.jpg)
 
-```cpp
-// Replace with your Blynk credentials
-char BLYNK_AUTH_TOKEN[32] = "";                         // Leave empty
-#define BLYNK_TEMPLATE_ID       "TMPL6pfVLC6bj"        // Your Template ID
-#define BLYNK_TEMPLATE_NAME     "Gas and Fire Detection"
+Beautiful responsive design with:
+- Animated gradient background
+- Real-time token character counter
+- Form validation
+- Mobile-friendly interface
+
+</td>
+<td width="50%">
+
+### 📱 Blynk Mobile Dashboard
+![Blynk App](blynk-dashboard.jpg)
+
+Control everything remotely:
+- Live gas PPM gauge
+- Relay & servo switches
+- Threshold slider
+- AUTO/MANUAL toggle
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🖥️ LCD Display (Normal)
+```
+┌────────────────┐
+│GAS:2100PPM AUTO│
+│RL:0 SRV:CLOSE  │
+└────────────────┘
 ```
 
-### 2. Pin Configuration (Optional)
+</td>
+<td width="50%">
 
-Edit `def.h` if you want to change pins:
-
-```cpp
-// Modify these values to match your wiring
-#define MQ2_SENSOR    35    // Change to your MQ-2 pin
-#define MH_SENSOR     34    // Change to your flame sensor pin
-#define SERVO         33    // Single servo for door
-// ... etc
+### ⚠️ LCD Display (Alert)
+```
+┌────────────────┐
+│    WARNING     │
+│  GAS DETECTED  │
+└────────────────┘
 ```
 
-### 3. Gas Threshold (Optional)
-
-Edit in `main.cpp` or change via Blynk app:
-
-```cpp
-#define GAS_THRESHOLD 2200  // Default threshold (0-10000 ppm scale)
-```
-
-### 4. WiFi Access Point (Optional)
-
-Edit `config.h`:
-
-```cpp
-#define APssid      "ESP32"        // Change AP name
-#define APpassword  ""             // Leave empty for open AP
-```
+</td>
+</tr>
+</table>
 
 ---
 
-## 📱 Blynk Setup
+## 🤝 Contributing
 
-### Step 1: Create Blynk Account
+Contributions are welcome! Please follow these steps:
 
-1. Download **Blynk IoT** app ([iOS](https://apps.apple.com/app/blynk-iot/id1559317868) | [Android](https://play.google.com/store/apps/details?id=cloud.blynk))
-2. Sign up for free account
-3. Create new template
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your changes (`git commit -m 'Add AmazingFeature'`)
+4. **Push** to branch (`git push origin feature/AmazingFeature`)
+5. **Open** a Pull Request
 
-### Step 2: Configure Blynk Template
-
-1. **Go to Templates** → **Create New Template**
-2. **Name**: Gas and Fire Detection
-3. **Hardware**: ESP32
-4. **Connection**: WiFi
-
-### Step 3: Add Datastreams
-
-Create the following datastreams:
-
-| Pin | Name | Type | Min | Max | Default |
-|-----|------|------|-----|-----|---------|
-| V0 | Gas Value | Virtual | 0 | 10000 | 0 |
-| V1 | Relay Control | Virtual | 0 | 3 | 0 |
-| V2 | Door Control | Virtual | 0 | 1 | 0 |
-| V3 | Gas Threshold | Virtual | 200 | 10000 | 2200 |
-
-### Step 4: Design Dashboard
-
-Add these widgets to your dashboard:
-
-1. **Gauge** (V0) - Gas concentration display
-   - Units: ppm
-   - Range: 0-10000
-   - Color zones: Green (0-2000), Yellow (2000-3000), Red (3000+)
-
-2. **Slider** (V1) - Relay control (0-3)
-   - 0 = All OFF
-   - 1 = Fan ON, Pump OFF
-   - 2 = Fan OFF, Pump ON
-   - 3 = Both ON
-
-3. **Switch** (V2) - Door control
-   - OFF = Closed (0°)
-   - ON = Open (90°)
-
-4. **Slider** (V3) - Threshold adjustment
-   - Range: 200-5000 ppm
-   - Default: 2200
-
-5. **Chart** - Historical gas data (V0)
-   - Time range: 6 hours
-   - Y-axis: 0-10000
-
-6. **Terminal** - Event log
-   - Shows alerts and system messages
-
-### Step 5: Configure Events
-
-1. **Go to Events** → **Create Event**
-2. **Event Code**: `gas_fire_detection`
-3. **Name**: Gas/Fire Alert
-4. **Notification**: "⚠️ {DEVICE_NAME} Alert: {EVENT_DESCRIPTION}"
-5. **Enable Push Notifications**
-
-### Step 6: Get Auth Token
-
-1. Go to **Device** → **Create Device**
-2. Select your template
-3. Name your device (e.g., "Kitchen Safety Monitor")
-4. **Copy Auth Token**
-5. Enter via web configuration portal at 192.168.4.1
+### Contribution Ideas
+- [ ] Add SMS notifications via Twilio
+- [ ] Implement data logging to SD card
+- [ ] Create 3D-printed enclosure design
+- [ ] Add temperature/humidity sensors (DHT22)
+- [ ] Integrate with Home Assistant
+- [ ] Multi-language support for web portal
 
 ---
 
-## 🌐 Web Interface
+## 📜 License
 
-### Accessing Configuration Portal
-
-#### First Time Setup (No WiFi Configured)
-
-1. **Power on ESP32**
-2. **Wait 10 seconds** for LCD to show "Connect ESP32"
-3. **On your phone/laptop**:
-   - Open WiFi settings
-   - Connect to network: **"ESP32"**
-   - Password: *(none - open network)*
-4. **Browser will auto-open** to configuration page
-   - If not, manually navigate to: **http://192.168.4.1**
-
-### Configuration Page Features
-
-The web interface includes:
-
-- 🎨 **Beautiful animated gradient background**
-- 🔥 **Pulsing fire icon** with glow effects
-- 📝 **Three input fields**:
-  - **WiFi SSID** (network name) - Required
-  - **WiFi Password** - **OPTIONAL** (leave empty for open networks!)
-  - **Blynk Token** (32 characters) - Required
-- ✅ **Real-time validation**
-- 💾 **Automatic save and restart**
-
-### Filling Out the Form
-
-1. **WiFi SSID** (Required):
-   - Enter your WiFi network name
-   - Case-sensitive
-   - Max 32 characters
-
-2. **WiFi Password** (Optional):
-   - Enter your WiFi password
-   - **Leave EMPTY for open/public WiFi networks**
-   - Click 👁️ icon to show/hide
-   - Max 64 characters
-   - Spaces allowed
-
-3. **Blynk Token** (Required):
-   - Paste 32-character token from Blynk app
-   - Counter shows character count (must be exactly 32)
-   - Green = valid, Red = invalid length
-
-4. **Click "💾 SAVE CONFIGURATION"**
-   - Page will show "⏳ Saving..."
-   - ESP32 will restart automatically
-   - Wait 30-60 seconds for connection
-
-### Success Page
-
-After saving, you'll see:
-- ✅ **Success checkmark animation**
-- 📡 **Connecting status** with spinner
-- ⏳ **Wait time** (30-60 seconds)
-- 📋 **Connected network** name
-
----
-
-## 🎮 Usage
-
-### System Startup Sequence
-
-```
-1. Power On
-   └── LCD: "Gas and Fire Detection System"
-   
-2. Hardware Initialization
-   └── LCD: "Configuring WiFi..."
-   
-3. WiFi Connection
-   ├── Success: "WiFi Connected" → Shows SSID
-   └── Fail: "Connect ESP32" → AP mode
-   
-4. Blynk Connection
-   ├── Success: "Blynk Connected"
-   └── Fail: "Disconnect Blynk" → Retry or AP mode
-   
-5. Sensor Warm-up
-   └── LCD: "Warming Up Sensors... Wait: 60 (s)"
-       (Counts down from 60 to 0)
-   
-6. System Ready
-   └── LCD: "System running"
-           "Gas: XXXX ppm"
-```
-
-### Normal Operation
-
-**LCD Display** (2 rows x 16 columns):
-```
-Row 1: "System running  "
-Row 2: "Gas:2150ppm    "
-```
-
-**Every 2 seconds**:
-- Reads gas sensor (with Kalman filtering)
-- Reads fire sensor
-- Updates LCD display
-- Sends data to Blynk
-- Evaluates hazard conditions
-
-### Alert Scenarios
-
-#### 🟢 Scenario 1: Normal (All Safe)
-
-**Conditions:**
-- Gas < Threshold
-- No Fire
-
-**Actions:**
-- ✅ LCD: "System running" + gas value
-- ✅ Buzzer: OFF
-- ✅ LED: OFF
-- ✅ Door: Closed (0°)
-- ✅ Fan: OFF
-- ✅ Pump: OFF
-- ✅ User silence flag: Reset
-
----
-
-#### 🟡 Scenario 2: Gas Detected Only
-
-**Conditions:**
-- Gas > Threshold
-- No Fire
-
-**Actions:**
-- 🚨 LCD: "WARNING! GAS DETECTED"
-- 🚨 Buzzer: Beeping (1s ON, 0.1s OFF) - unless silenced
-- 🚨 LED: ON (solid)
-- 🚨 Door: Open (90°)
-- 🚨 Fan: ON (ventilation)
-- ✅ Pump: OFF
-- 📱 Blynk: "GAS CONCENTRATION HIGH!"
-
-**Purpose**: Ventilate area to disperse gas
-
----
-
-#### 🟠 Scenario 3: Fire Detected Only
-
-**Conditions:**
-- Gas < Threshold
-- Fire Detected
-
-**Actions:**
-- 🚨 LCD: "WARNING! FIRE DETECTED"
-- 🚨 Buzzer: Beeping - unless silenced
-- 🚨 LED: ON
-- 🚨 Door: Open
-- ✅ Fan: OFF
-- 🚨 Pump: ON (water spray)
-- 📱 Blynk: "FIRE DETECTED!"
-
-**Purpose**: Suppress fire with water
-
----
-
-#### 🔴 Scenario 4: Gas AND Fire (Critical!)
-
-**Conditions:**
-- Gas > Threshold
-- Fire Detected
-
-**Actions:**
-- 🚨 LCD: "WARNING! GAS & FIRE"
-- 🚨 Buzzer: Continuous beeping - unless silenced
-- 🚨 LED: ON
-- 🚨 Door: Open
-- 🚨 Fan: ON
-- 🚨 Pump: ON
-- 📱 Blynk: "WARNING: FIRE & GAS DETECTED!"
-
-**Purpose**: Maximum response - ventilate AND suppress
-
----
-
-### Manual Control
-
-#### Physical Button - Smart Silence Feature 🔕
-
-**Button Behavior** (Short Press):
-
-```
-1. ✅ Silences buzzer immediately
-2. ✅ Keeps all safety systems active (fan, pump, door)
-3. ✅ Sets "userSilencedBuzzer" flag
-4. ✅ LCD shows "Buzzer Silenced by User" for 2 seconds
-5. ✅ System continues monitoring
-```
-
-**Auto-Reactivation Logic:**
-
-```
-Scenario A: Alert persists (gas/fire still present)
-  └── Buzzer remains OFF (respects user's silence)
-  └── Safety systems stay active
-  └── LCD continues showing warnings
-
-Scenario B: Alert clears, then new alert detected
-  └── Buzzer automatically REACTIVATES
-  └── User must press button again to silence new alert
-  └── Ensures user is aware of new hazard
-```
-
-**Usage Examples:**
-
-1. **False Alarm (cooking smoke)**:
-   - Press button → Buzzer stops
-   - Wait for alert to clear
-   - System resets automatically
-
-2. **Real Emergency**:
-   - Alert triggered → Buzzer sounds
-   - Press button → Silence buzzer to think/communicate
-   - Safety systems continue working
-   - Leave area safely
-
-3. **Multiple Alerts**:
-   - Alert 1 → Press button → Silenced
-   - Alert clears → System safe
-   - Alert 2 (new) → Buzzer reactivates automatically
-   - Must press button again to silence
-
----
-
-#### Blynk App Control
-
-**Gas Value (V0) - Read Only**
-- Displays current gas concentration (0-10000 ppm)
-- Updates every 2 seconds
-- Use Chart widget to see trends
-
-**Relay Control (V1) - Manual Override**
-- Slider: 0 to 3
-  - `0` = Both OFF
-  - `1` = Fan ON, Pump OFF
-  - `2` = Fan OFF, Pump ON
-  - `3` = Both ON
-- Useful for testing or manual ventilation
-
-**Door Control (V2) - Emergency Override**
-- Switch: ON/OFF
-  - `OFF` = Door closed (0°)
-  - `ON` = Door open (90°)
-- Useful for testing servo or emergency access
-
-**Gas Threshold (V3) - Sensitivity Adjustment**
-- Slider: 200 to 10000 ppm
-- Default: 2200 ppm
-- Lower = More sensitive (earlier warnings)
-- Higher = Less sensitive (fewer false alarms)
-- Saved to EEPROM (persists after restart)
-
----
-
-### FreeRTOS Tasks
-
-The system runs 5 parallel tasks:
-
-| Task | Core | Priority | Stack | Function |
-|------|------|----------|-------|----------|
-| **TaskWebServer** | 0 | 5 | 8192 | Handles HTTP requests (AP mode) |
-| **TaskBlynk** | 0 | 5 | 8192 | Blynk communication & reconnection |
-| **TaskMainDisplay** | 1 | 5 | 4096 | Sensor monitoring & alerts |
-| **TaskBuzzer** | 1 | 5 | 2048 | Buzzer control with silence logic |
-| **TaskButton** | 1 | 5 | 2048 | Button input handling (debounced) |
-
-**Why FreeRTOS?**
-- ✅ **Non-blocking**: All tasks run simultaneously
-- ✅ **Responsive**: Button press detected instantly
-- ✅ **Efficient**: ESP32 dual-core fully utilized
-- ✅ **Stable**: Each task has its own stack
-- ✅ **Task Suspension**: Can pause MainDisplay during config
-
----
-
-## 🔍 How It Works
-
-### Gas Detection (MQ-2 Sensor)
-
-**Sensor Technology**: SnO2 semiconductor
-- Detects: LPG, propane, methane, hydrogen, alcohol, smoke
-- Preheat time: 24-48 hours (for accuracy)
-- Operating voltage: 5V
-- Output: Analog voltage (0-5V)
-
-**Signal Processing Pipeline:**
-```
-1. analogRead(MQ2_SENSOR)           → Raw ADC value (0-4095)
-   ↓
-2. Kalman Filter                    → Noise reduction
-   ↓
-3. map(0-4095 → 0-10000)           → Convert to ppm scale
-   ↓
-4. Compare with threshold           → Decision
-   ↓
-5. Hysteresis check                 → Prevent flickering
-   ↓
-6. gasDetected = true/false         → Final state
-```
-
-**Hysteresis Logic:**
-```cpp
-If gas > threshold:
-    gasDetected = TRUE
-    
-If gas < threshold - 100:
-    gasDetected = FALSE
-    
-If threshold-100 < gas < threshold:
-    gasDetected = (keep previous state)
-```
-
-**Why hysteresis?** Prevents rapid ON/OFF cycling when gas level hovers near threshold.
-
----
-
-### Fire Detection (Infrared Flame Sensor)
-
-**Sensor Technology**: IR photodiode
-- Detects: Infrared radiation from flames (760-1100nm)
-- Response time: < 1ms
-- Detection range: 60-80cm (adjustable via potentiometer)
-- Output: Digital (HIGH/LOW)
-
-**Detection Logic:**
-```cpp
-fireDetected = (digitalRead(MH_SENSOR) == MH_SENSOR_ON);
-
-// Where:
-// MH_SENSOR_ON  = 0 (Active LOW - fire detected)
-// MH_SENSOR_OFF = 1 (No fire)
-```
-
----
-
-### Smart Buzzer Control Logic
-
-**State Machine:**
-```cpp
-bool buzzerActive = false;          // Current buzzer state
-bool userSilencedBuzzer = false;   // User silence flag
-bool lastAlertState = false;        // Previous alert state
-
-// In handleAlerts():
-bool currentAlertState = (gasDetected || fireDetected);
-
-// NEW ALERT DETECTED
-if (currentAlertState && !lastAlertState) {
-    buzzerActive = true;              // Activate buzzer
-    userSilencedBuzzer = false;       // Reset silence flag
-}
-
-// ALERT ACTIVE
-if (currentAlertState) {
-    if (!userSilencedBuzzer) {
-        buzzerActive = true;           // Buzzer ON
-    } else {
-        buzzerActive = false;          // Buzzer OFF (silenced)
-    }
-    // Safety systems stay active regardless
-}
-
-// ALERT CLEARED
-if (!currentAlertState) {
-    buzzerActive = false;
-    userSilencedBuzzer = false;        // Reset for next alert
-}
-```
-
-**Key Features:**
-- ✅ Button only affects buzzer, not safety systems
-- ✅ Silence persists during same alert
-- ✅ Auto-reactivates on new alert
-- ✅ Safety systems always active during hazard
-
----
-
-### WiFi Manager
-
-**Access Point (AP) Mode:**
-- Activates when: No credentials stored OR connection fails
-- SSID: "ESP32"
-- Password: None (open network)
-- IP: 192.168.4.1
-- Serves: Configuration web page
-
-**Station (STA) Mode:**
-- Activates when: Valid credentials in EEPROM
-- Connects to: User's WiFi router
-- IP: Assigned by DHCP (e.g., 192.168.1.100)
-- Serves: Blynk connection
-
-**Open WiFi Support:**
-- Password field is optional
-- Can leave empty for public/open networks
-- JavaScript validation updated to allow empty password
-- Backend accepts empty password string
-
----
-
-### EEPROM Memory Map
-
-ESP32 EEPROM (512 bytes) usage:
-
-| Address | Size | Content | Default |
-|---------|------|---------|---------|
-| 0-31 | 32 bytes | WiFi SSID | Empty |
-| 32-95 | 64 bytes | WiFi Password | Empty (open network support) |
-| 96-127 | 32 bytes | Blynk Token | Empty |
-| 128-201 | 74 bytes | *Reserved* | - |
-| 202 | 1 byte | Threshold MSB (×100) | 22 |
-| 203 | 1 byte | Threshold LSB | 0 |
-| 204-511 | 308 bytes | *Free* | - |
-
-**Example: Storing threshold 2200**
-```
-2200 ÷ 100 = 22 → Address 202
-2200 % 100 = 0  → Address 203
-
-Read back: (22 × 100) + 0 = 2200
-```
-
----
-
-## 📊 Performance Metrics
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Sensor Read Rate** | 2 seconds | Configurable via `sensorCheckInterval` |
-| **Blynk Update Rate** | 2 seconds | Via `timer.setInterval(2000L, Timer)` |
-| **Button Response Time** | <50ms | Hardware debounce + 50ms software |
-| **WiFi Reconnect** | 30 seconds | Auto-retry every 30s if disconnected |
-| **Memory Usage** | ~45% | ~135KB RAM used of 320KB |
-| **Flash Usage** | ~60% | ~800KB of 1.3MB partition |
-| **Power Consumption** | ~250mA | ESP32 + sensors (without relays) |
-| **Boot Time** | ~5 seconds | From power-on to WiFi connected |
-| **Warmup Time** | 60 seconds | Sensor stabilization countdown |
-
----
-
-## 🔐 Security Considerations
-
-### WiFi Security
-- ✅ Supports WPA/WPA2 encryption
-- ⚠️ AP mode is OPEN by default (no password)
-- 💡 Consider adding AP password in production
-- 🔒 Credentials stored in EEPROM (not encrypted)
-
-### Blynk Security
-- ✅ Token-based authentication
-- ✅ HTTPS communication with Blynk cloud
-- ⚠️ Token visible in Serial Monitor during debug
-- 💡 Disable Serial output in production
-
----
-
-### Community Contributions
-Pull requests welcome! Areas for contribution:
-- Additional sensor support (CO, CO2, smoke)
-- Alternative IoT platforms (ThingSpeak, Home Assistant)
-- Mobile app (React Native/Flutter)
-- PCB design for production
-- 3D printable enclosure designs
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ```
 MIT License
 
-Copyright (c) 2024 [Your Name]
+Copyright (c) 2024 Quan Vu
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -913,75 +664,55 @@ copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 ```
 
 ---
 
-## 🙏 Acknowledgments
+## 👤 Author
 
-- **Blynk** - For excellent IoT platform
-- **ESP32 Community** - For comprehensive documentation
-- **Arduino Community** - For extensive library support
-- **FreeRTOS** - For real-time operating system
-- **All contributors** - For improvements and bug reports
+<div align="center">
 
----
+**Quan Vu**
 
-## 📞 Support & Contact
+[![GitHub](https://img.shields.io/badge/GitHub-coldbrewtonic22-181717?style=for-the-badge&logo=github)](https://github.com/coldbrewtonic22)
+[![Email](https://img.shields.io/badge/Email-vmquan.dev@gmail.com-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:vmquan.dev@gmail.com)
 
-### Get Help
-- 📖 **Documentation**: Read this README thoroughly
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/coldbrewtonic22/Gas-and-Fire-Detection-System/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/coldbrewtonic22/Gas-and-Fire-Detection-System/discussions)
-- 📧 **Email**: vmquan.dev@gmail.com
+</div>
 
 ---
 
-## ⚠️ Safety Disclaimer
+## ⭐ Acknowledgments
 
-**IMPORTANT**: This project is for educational and experimental purposes. 
-
-- ⚠️ **NOT certified** for commercial safety applications
-- ⚠️ **NOT a replacement** for professional fire/gas detection systems
-- ⚠️ **Use at your own risk** - creator assumes no liability
-- ⚠️ **Always have backup** safety measures (smoke alarms, CO detectors)
-- ⚠️ **Regular maintenance** required - test sensors monthly
-- ⚠️ **Follow local codes** and regulations for safety equipment
-
-**For life-critical applications, use certified commercial systems.**
-
----
-
-## 👨‍💻 Author
-
-**[Quan Vu]**
-- GitHub: [@coldbrewtonic22](https://github.com/coldbrewonic22)
-- Email: vmquan.dev@gmail.com
-
----
-
-## 🙏 Acknowledgments
-
-- Blynk Team
-- ESP32 Community
-- FreeRTOS Project
-- Arduino Community
-- All open-source library contributors
+- **Blynk Team** - For the amazing IoT platform
+- **PlatformIO** - For the excellent build system
+- **Arduino Community** - For comprehensive libraries
+- **ESP32 Community** - For technical documentation
+- **MQ-2 Datasheet Authors** - For sensor specifications
 
 ---
 
 ## 📞 Support
 
 If you encounter any issues or have questions:
-1. Check [Troubleshooting](#troubleshooting) section
-2. Open an issue on [GitHub](https://github.com/coldbrewtonic22/gas-fire-detection-system/issues)
-3. Contact via email: vmquan.dev@gmail.com
+
+1. 📖 Check the [Troubleshooting](#-troubleshooting) section
+2. 🔍 Search existing [GitHub Issues](https://github.com/coldbrewtonic22/gas-fire-detection/issues)
+3. 💬 Open a new issue with detailed description
+4. 📧 Email: [vmquan.dev@gmail.com](mailto:vmquan.dev@gmail.com)
 
 ---
 
-**⚠️ Safety Warning**: This system is designed for educational purposes. For critical safety applications, use certified commercial systems and consult with safety professionals.
+<div align="center">
+
+### ⚠️ Safety Disclaimer
+
+This system is designed as a **supplementary safety device** and should **NOT** replace professional fire detection systems or building safety codes. Always ensure compliance with local fire safety regulations. The author assumes no liability for damages or injuries resulting from the use of this device.
+
+---
+
+**If you found this project helpful, please consider giving it a ⭐!**
+
+Made with ❤️ and ESP32
+
+</div>
